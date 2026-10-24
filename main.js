@@ -8,12 +8,22 @@ const appPaths = {
   mixora: [path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'Mixora', 'Mixora.exe')],
   wavesynk: [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'WaveSynk', 'WaveSynk.exe'), path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'WaveSynk', 'WaveSynk.exe')]
 };
+const appRepositories = {
+  sunando: 'https://github.com/fernexdesigner-cmyk/SUNANDO',
+  wavesynk: 'https://github.com/fernexdesigner-cmyk/WAVESYNK',
+};
 const knownApp = id => Object.prototype.hasOwnProperty.call(appPaths, id) ? appPaths[id].find(file => fs.existsSync(file)) || null : null;
 ipcMain.handle('djstudio:apps-available', () => Object.fromEntries(Object.entries(appPaths).map(([id, candidates]) => [id, candidates.some(file => fs.existsSync(file))])));
 ipcMain.handle('djstudio:open-app', (event, id) => new Promise(resolve => {
   const owner = BrowserWindow.fromWebContents(event.sender);
+  if (!owner || !Object.prototype.hasOwnProperty.call(appPaths, id)) return resolve({ opened: false, installed: false });
   const exe = knownApp(id);
-  if (!owner || !exe) return resolve({ opened: false, installed: false });
+  if (!exe) {
+    const repository = appRepositories[id];
+    if (!repository) return resolve({ opened: false, installed: false, comingSoon: true });
+    shell.openExternal(repository).then(() => resolve({ opened: false, installed: false, redirected: true, repository })).catch(error => resolve({ opened: false, installed: false, redirected: false, repository, error: error.message || 'Não foi possível abrir o repositório.' }));
+    return;
+  }
   const child = spawn(exe, [], { detached: true, stdio: 'ignore', windowsHide: false, cwd: path.dirname(exe) });
   child.once('error', error => resolve({ opened: false, installed: true, error: error.code || error.message || 'Falha ao iniciar o processo.' }));
   child.once('spawn', () => { child.unref(); resolve({ opened: true, installed: true }); });
@@ -31,6 +41,14 @@ let splashProgress = { progress: 4, status: 'Inicializando o DJ Studio PRO…' }
 let splashVisibleAt = 0;
 let latestUpdateInfo = null;
 let manualCheck = false;
+let startupUpdateCheckDone = !app.isPackaged || process.platform !== 'win32';
+let latestUpdateState = { state: 'idle' };
+function completeStartupUpdateCheck() {
+  if (startupUpdateCheckDone) return;
+  startupUpdateCheckDone = true;
+  if (mainWindow && mainWindow.__djStudioReady) revealMainWindow(mainWindow);
+}
+
 function publishSplashProgress(progress, status) {
   splashProgress = { progress: Math.max(splashProgress.progress, Math.min(100, Math.max(0, progress))), status };
   if (splashWindow && !splashWindow.isDestroyed() && !splashWindow.webContents.isLoading()) {
@@ -118,9 +136,12 @@ function revealMainWindow(win) {
   }, remaining);
 }
 function publishUpdateState(state, extra = {}) {
-  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('djstudio:update:state', { state, currentVersion: app.getVersion(), ...(latestUpdateInfo || {}), ...extra });
+  latestUpdateState = { state, currentVersion: app.getVersion(), ...(latestUpdateInfo || {}), ...extra };
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('djstudio:update:state', latestUpdateState);
 }
+
 ipcMain.handle('djstudio:update:version', () => ({ currentVersion: app.getVersion(), packaged: app.isPackaged }));
+ipcMain.handle('djstudio:update:state', () => latestUpdateState);
 ipcMain.handle('djstudio:update:check', async () => {
   if (!updater) { publishUpdateState('unavailable', { message: 'A verificação online fica disponível na versão instalada do Windows.' }); return { available: false }; }
   manualCheck = true; publishUpdateState('checking');
@@ -135,17 +156,18 @@ ipcMain.handle('djstudio:update:install', () => {
   return { started: true, installing: false };
 });
 function setupAutoUpdates() {
-  if (!app.isPackaged || process.platform !== 'win32') return;
+  if (!app.isPackaged || process.platform !== 'win32') { completeStartupUpdateCheck(); return; }
   try { ({ autoUpdater: updater } = require('electron-updater')); }
-  catch (error) { console.error('Não foi possível carregar o sistema de atualizações:', error); return; }
+  catch (error) { console.error('Não foi possível carregar o sistema de atualizações:', error); completeStartupUpdateCheck(); return; }
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = true;
   updater.allowDowngrade = false;
-  updater.on('error', error => { updateDownloading = false; publishUpdateState('error', { message: error.message || 'Falha ao atualizar.' }); console.error('Erro ao atualizar o DJ Studio PRO:', error); });
+  updater.on('error', error => { updateDownloading = false; publishUpdateState('error', { message: error.message || 'Falha ao atualizar.' }); completeStartupUpdateCheck(); console.error('Erro ao atualizar o DJ Studio PRO:', error); });
   updater.on('update-available', info => {
     updateAvailable = true;
     latestUpdateInfo = { latestVersion: info.version, releaseNotes: info.releaseNotes, releaseDate: info.releaseDate };
     publishUpdateState('available', latestUpdateInfo);
+    completeStartupUpdateCheck();
     startUpdateDownload();
     manualCheck = false;
   });
@@ -153,6 +175,7 @@ function setupAutoUpdates() {
     updateAvailable = false; manualCheck = false;
     latestUpdateInfo = { latestVersion: app.getVersion(), releaseNotes: info?.releaseNotes || [] };
     publishUpdateState('current', latestUpdateInfo);
+    completeStartupUpdateCheck();
   });
   updater.on('download-progress', progress => publishUpdateState('downloading', { progress: progress.percent, transferred: progress.transferred, total: progress.total, bytesPerSecond: progress.bytesPerSecond }));
   updater.on('update-downloaded', info => {
@@ -162,7 +185,7 @@ function setupAutoUpdates() {
     if (quitRequestedForUpdate || installWhenReady) updater.quitAndInstall(false, true);
   });
   app.whenReady().then(() => {
-    setTimeout(() => updater.checkForUpdates().catch(error => { publishUpdateState('error', { message: error.message }); console.error('Falha ao verificar atualizações:', error); }), 6000);
+    setTimeout(() => updater.checkForUpdates().catch(error => { publishUpdateState('error', { message: error.message }); completeStartupUpdateCheck(); console.error('Falha ao verificar atualizações:', error); }), 250);
     setInterval(() => { if (!updateAvailable && !updateDownloading && !updateDownloaded) updater.checkForUpdates().catch(error => console.error('Falha ao verificar atualizações:', error)); }, 6 * 60 * 60 * 1000).unref();
   });
 }
@@ -193,8 +216,10 @@ function createWindow() {
   startupFallback.unref();
   win.once('ready-to-show', () => {
     clearTimeout(startupFallback);
-    publishSplashProgress(96, 'Preparando a cabine…');
-    revealMainWindow(win);
+    publishSplashProgress(96, startupUpdateCheckDone ? 'Preparando a cabine…' : 'Verificando novidades para você…');
+    win.__djStudioReady = true;
+    if (startupUpdateCheckDone) revealMainWindow(win);
+    else { win.__updateGateTimer = setTimeout(() => { completeStartupUpdateCheck(); }, 12000); win.__updateGateTimer.unref(); }
   });
   win.loadFile(path.join(__dirname, 'app', 'index.html')).catch(error => {
     clearTimeout(startupFallback);

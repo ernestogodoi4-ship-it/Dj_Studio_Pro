@@ -1,6 +1,9 @@
-# DJ Studio PRO 2.4.8
+# DJ Studio PRO 2.4.9
 
-- Adicionada uma tela de inicialização com a arte oficial fornecida pelo usuário.
-- A barra de progresso acompanha os estágios reais de inicialização do Electron e do carregamento da interface.
-- A janela principal só aparece quando a interface está pronta; limites de tempo e erros de carregamento têm fallback para evitar tela presa.
-- A splash e sua imagem são recursos locais incluídos no pacote Windows, sem dependência de rede.
+. SUNANDO, Mixora e WaveSynk aparecem na barra lateral com ícones, prévias e atalhos.
+. As prévias mostram capturas, recursos e avisos dos aplicativos.
+. Notas de atualização exibidas em texto simples, sem tags HTML.
+. Reações RGB mais sutis, configuráveis para graves, médios, agudos ou espectro completo.
+. Arte de vinil personalizada aplicada à tela inicial e aos decks.
+. Janela de novidades apresentada antes da tela inicial quando uma atualização estiver disponível.
+. Download da atualização com progresso real, mini vinil animado e visual inspirado no WaveSynk.
