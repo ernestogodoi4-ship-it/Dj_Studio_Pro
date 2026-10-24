@@ -1,6 +1,6 @@
 {
   "name": "dj-studio-pro",
-  "version": "2.4.1",
+  "version": "2.4.2",
   "description": "DJ Studio PRO — aplicativo desktop para Windows com atualizações automáticas",
   "main": "main.js",
   "author": "Synk Audio Factory",
@@ -73,3 +73,4 @@
     "url": "https://github.com/ernestogodoi4-ship-it/Dj_Studio_Pro.git"
   }
 }
+
