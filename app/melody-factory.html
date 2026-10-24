@@ -1374,6 +1374,8 @@ function syncCfgUI(){
   $('cFsNote').hidden=fsOK;$('cPick').disabled=!fsOK;
 }
 function openCfg(){syncCfgUI();setTimeout(()=>fillRanges($("cfgBg")),0);$('cfgBg').hidden=false;$('cfgClose').focus()}
+window.addEventListener('message',e=>{if(e.data?.type==='djstudio:open-melody-settings')openCfg()});
+$('btnCfg').style.display='none';$('btnBackStudio').style.display='none';
 function closeCfg(){$('cfgBg').hidden=true;$('btnCfg').focus()}
 function initCfg(){
   $('cPalette').innerHTML=Object.entries(PALETTES).map(([k,p])=>`<option value="${k}">${p.name}</option>`).join('');
