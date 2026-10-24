@@ -26,8 +26,97 @@ let updateDownloaded = false;
 let installWhenReady = false;
 let quitRequestedForUpdate = false;
 let mainWindow = null;
+let splashWindow = null;
+let splashProgress = { progress: 4, status: 'Inicializando o DJ Studio PRO…' };
+let splashVisibleAt = 0;
 let latestUpdateInfo = null;
 let manualCheck = false;
+function publishSplashProgress(progress, status) {
+  splashProgress = { progress: Math.max(splashProgress.progress, Math.min(100, Math.max(0, progress))), status };
+  if (splashWindow && !splashWindow.isDestroyed() && !splashWindow.webContents.isLoading()) {
+    splashWindow.webContents.send('djstudio:splash:progress', splashProgress);
+  }
+}
+function closeSplash() {
+  const splash = splashWindow;
+  splashWindow = null;
+  if (!splash || splash.isDestroyed()) return;
+  try { splash.close(); } catch { splash.destroy(); }
+}
+function createSplashWindow() {
+  try {
+    const splash = new BrowserWindow({
+      width: 960,
+      height: 540,
+      useContentSize: true,
+      center: true,
+      frame: false,
+      resizable: false,
+      maximizable: false,
+      minimizable: false,
+      fullscreenable: false,
+      skipTaskbar: true,
+      show: false,
+      backgroundColor: '#090B0F',
+      title: 'DJ Studio PRO — Inicializando',
+      webPreferences: {
+        preload: path.join(__dirname, 'app', 'splash-preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
+      }
+    });
+    splashWindow = splash;
+    let fallbackTimer = setTimeout(() => {
+      if (!splash.isDestroyed() && !splash.isVisible()) {
+        splash.show();
+        splashVisibleAt = Date.now();
+      }
+    }, 4000);
+    fallbackTimer.unref();
+    splash.once('ready-to-show', () => {
+      clearTimeout(fallbackTimer);
+      if (splash.isDestroyed()) return;
+      splash.show();
+      splashVisibleAt = Date.now();
+      if (!splash.webContents.isLoading()) splash.webContents.send('djstudio:splash:progress', splashProgress);
+    });
+    splash.webContents.on('did-finish-load', () => {
+      if (!splash.isDestroyed()) splash.webContents.send('djstudio:splash:progress', splashProgress);
+    });
+    splash.webContents.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
+      if (!isMainFrame) return;
+      clearTimeout(fallbackTimer);
+      console.error(`Falha ao carregar a tela inicial (${code}): ${description} — ${url}`);
+      if (splashWindow === splash) splashWindow = null;
+      if (!splash.isDestroyed()) splash.destroy();
+    });
+    splash.on('closed', () => { if (splashWindow === splash) splashWindow = null; });
+    splash.loadFile(path.join(__dirname, 'app', 'splash.html')).catch(error => {
+      clearTimeout(fallbackTimer);
+      console.error('Não foi possível abrir a tela inicial:', error);
+      if (splashWindow === splash) splashWindow = null;
+      if (!splash.isDestroyed()) splash.destroy();
+    });
+    return splash;
+  } catch (error) {
+    console.error('Não foi possível criar a tela inicial:', error);
+    splashWindow = null;
+    return null;
+  }
+}
+function revealMainWindow(win) {
+  if (!win || win.isDestroyed() || win.__djStudioRevealed) return;
+  win.__djStudioRevealed = true;
+  publishSplashProgress(100, 'Pronto para mixar.');
+  const minSplashDuration = splashVisibleAt ? 650 : 0;
+  const remaining = Math.max(0, minSplashDuration - (Date.now() - splashVisibleAt));
+  setTimeout(() => {
+    if (win.isDestroyed()) return;
+    win.show();
+    closeSplash();
+  }, remaining);
+}
 function publishUpdateState(state, extra = {}) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('djstudio:update:state', { state, currentVersion: app.getVersion(), ...(latestUpdateInfo || {}), ...extra });
 }
@@ -87,10 +176,31 @@ app.on('before-quit', event => {
   if (updateDownloading && (installWhenReady || quitRequestedForUpdate)) { event.preventDefault(); quitRequestedForUpdate = true; }
 });
 function createWindow() {
-  const win = new BrowserWindow({ icon: fs.existsSync(path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico')) ? path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico') : path.join(__dirname, 'build', 'LOGO-DJSTUDIO.ico'), width: 1440, height: 920, minWidth: 900, minHeight: 620, title: 'DJ Studio PRO', backgroundColor: '#0b0d10', autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  publishSplashProgress(28, 'Preparando os módulos de áudio…');
+  const win = new BrowserWindow({ icon: fs.existsSync(path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico')) ? path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico') : path.join(__dirname, 'build', 'LOGO-DJSTUDIO.ico'), width: 1440, height: 920, minWidth: 900, minHeight: 620, title: 'DJ Studio PRO', backgroundColor: '#0b0d10', autoHideMenuBar: true, show: false, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   mainWindow = win;
   win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
-  win.loadFile(path.join(__dirname, 'app', 'index.html'));
+  publishSplashProgress(42, 'Carregando a biblioteca musical…');
+  win.webContents.on('did-start-loading', () => publishSplashProgress(50, 'Carregando a biblioteca musical…'));
+  win.webContents.once('dom-ready', () => publishSplashProgress(72, 'Inicializando áudio e análise…'));
+  win.webContents.once('did-finish-load', () => publishSplashProgress(91, 'Finalizando interface e controladores…'));
+  win.webContents.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
+    if (!isMainFrame) return;
+    console.error(`Falha ao carregar a janela principal (${code}): ${description} — ${url}`);
+    revealMainWindow(win);
+  });
+  let startupFallback = setTimeout(() => revealMainWindow(win), 25000);
+  startupFallback.unref();
+  win.once('ready-to-show', () => {
+    clearTimeout(startupFallback);
+    publishSplashProgress(96, 'Preparando a cabine…');
+    revealMainWindow(win);
+  });
+  win.loadFile(path.join(__dirname, 'app', 'index.html')).catch(error => {
+    clearTimeout(startupFallback);
+    console.error('Não foi possível carregar o DJ Studio PRO:', error);
+    revealMainWindow(win);
+  });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://') || url.startsWith('http://')) shell.openExternal(url);
     return { action: 'deny' };
@@ -105,6 +215,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  publishSplashProgress(14, 'Preparando o ambiente de áudio…');
+  createSplashWindow();
   createWindow();
   setupAutoUpdates();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
