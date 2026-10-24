@@ -1,6 +1,5 @@
-# DJ Studio PRO 2.4.6
+# DJ Studio PRO 2.4.7
 
-- Criada uma tela inicial dinâmica com navegação para a cabine, biblioteca e Melody Studio.
-- Adicionado vinil animado com espectro que reage ao áudio em reprodução.
-- Incluídos atalhos para abrir os decks, selecionar/criar uma playlist e abrir o Melody Studio.
-- A tela inicial mostra a versão instalada e as novidades do app.
+- Adicionados atalhos na tela Início para abrir SUNANDO, Mixora e WaveSynk.
+- Os cartões mostram se cada aplicativo está instalado e iniciam o app correspondente no Windows.
+- Mantida a tela inicial com vinil animado, espectro de áudio e atalhos para decks, playlists e Melody Studio.
