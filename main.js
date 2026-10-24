@@ -117,6 +117,8 @@ function startUpdateDownload() {
   updateDownloading = true;
   updater.downloadUpdate().catch(error => {
     updateDownloading = false;
+    installOnQuit = false;
+    updateAvailable = false;
     quitRequestedForUpdate = false;
     console.error('Falha ao baixar atualização:', error);
     const owner = BrowserWindow.getAllWindows()[0] || null;
@@ -162,5 +164,6 @@ app.whenReady().then(() => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
 
 
