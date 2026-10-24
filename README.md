@@ -16,7 +16,7 @@ O app instalado verifica atualizações ao iniciar e a cada seis horas. Quando e
 
 As versões são publicadas como Releases no repositório público [ernestogodoi4-ship-it/Dj_Studio_Pro](https://github.com/ernestogodoi4-ship-it/Dj_Studio_Pro). Para lançar uma versão, atualize a versão em `package.json` e `package-lock.json` (por exemplo, `npm version 2.4.2 --no-git-tag-version`) e envie o commit ao branch `main` com a mensagem começando por `Release `. O workflow `.github/workflows/release-windows.yml` compila o instalador NSIS x64 e publica o instalador e o manifesto de atualização na Release. Ele também pode ser iniciado manualmente em GitHub Actions. O GitHub Actions usa o `GITHUB_TOKEN` automático do workflow; não é necessário colocar token no aplicativo ou no código-fonte.
 
-**Primeira instalação do atualizador:** versões anteriores a 2.4.1 não contêm o mecanismo de atualização. Portanto, quem já tem uma versão antiga instalada precisa instalar manualmente o instalador 2.4.1 uma vez. Depois dessa instalação, as próximas versões chegam pelo aviso automático.
+**Primeira instalação do atualizador:** versões anteriores a 2.4.2 não contêm o mecanismo de atualização. Portanto, quem já tem uma versão antiga instalada precisa instalar manualmente o instalador 2.4.2 uma vez. Depois dessa instalação, as próximas versões chegam pelo aviso automático.
 
 O instalador NSIS gerado não é assinado com certificado Authenticode neste projeto. A configuração do atualizador aceita esses instaladores sem validação do certificado; os downloads continuam sendo conferidos pelo manifesto e pelo SHA-512 do electron-builder. Uma assinatura digital de publicação pode ser adicionada futuramente para validar também o editor do instalador no Windows.
 
