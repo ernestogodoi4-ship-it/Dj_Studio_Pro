@@ -1,0 +1,75 @@
+{
+  "name": "dj-studio-pro",
+  "version": "2.4.1",
+  "description": "DJ Studio PRO — aplicativo desktop para Windows com atualizações automáticas",
+  "main": "main.js",
+  "author": "Synk Audio Factory",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "45.0.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.synkaudio.djstudiopro",
+    "productName": "DJ Studio PRO",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "app/**/*"
+    ],
+    "extraFiles": [
+      {
+        "from": "build/LOGO-DJSTUDIO.ico",
+        "to": "DJ Studio PRO.ico"
+      }
+    ],
+    "win": {
+      "icon": "build/LOGO-DJSTUDIO.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DJ Studio PRO",
+      "uninstallDisplayName": "DJ Studio PRO"
+    },
+    "artifactName": "DJ_Studio_PRO_Setup_${version}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ernestogodoi4-ship-it",
+        "repo": "Dj_Studio_Pro",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ernestogodoi4-ship-it/Dj_Studio_Pro.git"
+  }
+}
