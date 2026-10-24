@@ -45,7 +45,7 @@ jobs:
                 tag_name: tag,
                 target_commitish: context.sha,
                 name: `DJ Studio PRO ${version}`,
-                body: `Atualização ${version} do DJ Studio PRO.`,
+                body: fs.existsSync('RELEASE_NOTES.md') ? fs.readFileSync('RELEASE_NOTES.md', 'utf8') : `Atualização ${version} do DJ Studio PRO.`,
                 draft: false,
                 prerelease: false
               });
