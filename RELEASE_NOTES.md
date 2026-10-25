@@ -1,4 +1,5 @@
-# DJ Studio PRO 2.4.14
+# DJ Studio PRO 2.4.15
 
-. Reversão das alterações da versão 2.4.13 para restaurar a experiência estável da versão 2.4.12.
-. Mantidos o instalador e o atualizador automático com numeração de versão corrigida.
+. Melody Studio separado do DJ Studio PRO e removido da interface e do pacote do DJ Studio.
+. O botão Melody Studio abre a instalação independente, quando disponível.
+. Funcionalidades Playlist Analyzer mantidas na biblioteca do DJ Studio.

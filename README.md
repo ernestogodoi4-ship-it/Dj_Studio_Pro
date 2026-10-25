@@ -56,4 +56,6 @@ SUNANDO, Mixora e WaveSynk são aplicativos externos iniciados pelo launcher. Es
 - Ajuste manual da grade, playlists reordenáveis, sugestões por compatibilidade/energia, limiter e capítulos de gravação já faziam parte do projeto.
 
 A separação de stems em tempo real não foi ativada: o projeto não inclui o modelo de separação nem um runtime local compatível.
+## Melody Studio separado
 
+O Melody Studio é mantido como app Electron independente em `melody-studio/`, com instalação, perfil de usuário e preferências próprios. Para instalar, execute `melody-studio/GERAR_INSTALADOR.bat`; depois, abra-o pelo botão Melody Studio no DJ Studio PRO.
