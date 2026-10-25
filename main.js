@@ -2,6 +2,7 @@ const { app, BrowserWindow, shell, ipcMain, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { spawn } = require('node:child_process');
+const { pathToFileURL } = require('node:url');
 
 const appPaths = {
   sunando: [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'SUNANDO', 'SUNANDO.exe'), path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'SUNANDO', 'SUNANDO.exe')],
@@ -12,8 +13,19 @@ const appRepositories = {
   sunando: 'https://github.com/fernexdesigner-cmyk/SUNANDO',
   wavesynk: 'https://github.com/fernexdesigner-cmyk/WAVESYNK',
 };
+const appPreviewFiles = {
+  sunando: 'sunando-preview.mp4',
+  mixora: 'mixora-preview.mp4',
+  wavesynk: 'wavesynk-preview.mp4'
+};
 const knownApp = id => Object.prototype.hasOwnProperty.call(appPaths, id) ? appPaths[id].find(file => fs.existsSync(file)) || null : null;
 ipcMain.handle('djstudio:apps-available', () => Object.fromEntries(Object.entries(appPaths).map(([id, candidates]) => [id, candidates.some(file => fs.existsSync(file))])));
+ipcMain.handle('djstudio:app-preview', (_event, id) => {
+  const filename = appPreviewFiles[id];
+  if (!filename) return null;
+  const previewPath = path.join(__dirname, 'app', 'assets', 'apps', filename);
+  return fs.existsSync(previewPath) ? pathToFileURL(previewPath).href : null;
+});
 ipcMain.handle('djstudio:open-app', (event, id) => new Promise(resolve => {
   const owner = BrowserWindow.fromWebContents(event.sender);
   if (!owner || !Object.prototype.hasOwnProperty.call(appPaths, id)) return resolve({ opened: false, installed: false });
@@ -43,6 +55,46 @@ let latestUpdateInfo = null;
 let manualCheck = false;
 let startupUpdateCheckDone = !app.isPackaged || process.platform !== 'win32';
 let latestUpdateState = { state: 'idle' };
+const displayReturnStates = new WeakMap();
+ipcMain.handle('djstudio:displays:list', () => screen.getAllDisplays().map((display, index) => ({
+  id: display.id,
+  label: display.label || (display.id === screen.getPrimaryDisplay().id ? 'Monitor principal' : `Monitor ${index + 1}`),
+  bounds: display.bounds,
+  workArea: display.workArea,
+  isPrimary: display.id === screen.getPrimaryDisplay().id
+})));
+ipcMain.handle('djstudio:displays:place', (event, { displayId, fullScreen = false } = {}) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const display = screen.getAllDisplays().find(item => String(item.id) === String(displayId));
+  if (!win || win.isDestroyed() || !display) return { ok: false, message: 'Monitor indisponível.' };
+  if (!displayReturnStates.has(win)) {
+    displayReturnStates.set(win, { bounds: win.getBounds(), maximized: win.isMaximized(), fullScreen: win.isFullScreen() });
+  }
+  if (win.isFullScreen()) win.setFullScreen(false);
+  if (win.isMaximized()) win.unmaximize();
+  if (fullScreen) {
+    win.setBounds(display.bounds);
+    win.setFullScreen(true);
+  } else {
+    const area = display.workArea;
+    const width = Math.min(1440, Math.max(700, Math.round(area.width * 0.88)));
+    const height = Math.min(920, Math.max(480, Math.round(area.height * 0.88)));
+    win.setBounds({ x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2), width, height });
+  }
+  return { ok: true, displayId: display.id, fullScreen };
+});
+ipcMain.handle('djstudio:displays:restore', event => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || win.isDestroyed()) return { ok: false };
+  const previous = displayReturnStates.get(win);
+  if (!previous) return { ok: true, restored: false };
+  displayReturnStates.delete(win);
+  if (win.isFullScreen()) win.setFullScreen(false);
+  win.setBounds(previous.bounds);
+  if (previous.maximized) win.maximize();
+  if (previous.fullScreen) win.setFullScreen(true);
+  return { ok: true, restored: true };
+});
 function completeStartupUpdateCheck() {
   if (startupUpdateCheckDone) return;
   startupUpdateCheckDone = true;

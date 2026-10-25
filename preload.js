@@ -1,5 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
-contextBridge.exposeInMainWorld('djStudioLauncher', Object.freeze({ available: () => ipcRenderer.invoke('djstudio:apps-available'), open: id => ipcRenderer.invoke('djstudio:open-app', id) }));
+contextBridge.exposeInMainWorld('djStudioLauncher', Object.freeze({ available: () => ipcRenderer.invoke('djstudio:apps-available'), open: id => ipcRenderer.invoke('djstudio:open-app', id), preview: id => ipcRenderer.invoke('djstudio:app-preview', id) }));
+
+contextBridge.exposeInMainWorld('djStudioDisplays', Object.freeze({
+  list: () => ipcRenderer.invoke('djstudio:displays:list'),
+  place: (displayId, fullScreen) => ipcRenderer.invoke('djstudio:displays:place', { displayId, fullScreen: Boolean(fullScreen) }),
+  restore: () => ipcRenderer.invoke('djstudio:displays:restore')
+}));
 
 contextBridge.exposeInMainWorld('djStudioUpdates', Object.freeze({
   version: () => ipcRenderer.invoke('djstudio:update:version'),
