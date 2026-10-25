@@ -1,308 +1,1 @@
-const { app, BrowserWindow, shell, ipcMain, screen } = require('electron');
-const path = require('node:path');
-const fs = require('node:fs');
-const { spawn } = require('node:child_process');
-const { pathToFileURL } = require('node:url');
-
-const appPaths = {
-  sunando: [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'SUNANDO', 'SUNANDO.exe'), path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'SUNANDO', 'SUNANDO.exe')],
-  mixora: [path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'Mixora', 'Mixora.exe')],
-  wavesynk: [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'WaveSynk', 'WaveSynk.exe'), path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'WaveSynk', 'WaveSynk.exe')]
-};
-const appRepositories = {
-  sunando: 'https://github.com/fernexdesigner-cmyk/SUNANDO',
-  wavesynk: 'https://github.com/fernexdesigner-cmyk/WAVESYNK',
-};
-const appPreviewFiles = {
-  sunando: 'sunando-preview.mp4',
-  mixora: 'mixora-preview.mp4',
-  wavesynk: 'wavesynk-preview.mp4'
-};
-const knownApp = id => Object.prototype.hasOwnProperty.call(appPaths, id) ? appPaths[id].find(file => fs.existsSync(file)) || null : null;
-ipcMain.handle('djstudio:apps-available', () => Object.fromEntries(Object.entries(appPaths).map(([id, candidates]) => [id, candidates.some(file => fs.existsSync(file))])));
-ipcMain.handle('djstudio:app-preview', (_event, id) => {
-  const filename = appPreviewFiles[id];
-  if (!filename) return null;
-  const previewPath = path.join(__dirname, 'app', 'assets', 'apps', filename);
-  return fs.existsSync(previewPath) ? pathToFileURL(previewPath).href : null;
-});
-ipcMain.handle('djstudio:open-app', (event, id) => new Promise(resolve => {
-  const owner = BrowserWindow.fromWebContents(event.sender);
-  if (!owner || !Object.prototype.hasOwnProperty.call(appPaths, id)) return resolve({ opened: false, installed: false });
-  const exe = knownApp(id);
-  if (!exe) {
-    const repository = appRepositories[id];
-    if (!repository) return resolve({ opened: false, installed: false, comingSoon: true });
-    shell.openExternal(repository).then(() => resolve({ opened: false, installed: false, redirected: true, repository })).catch(error => resolve({ opened: false, installed: false, redirected: false, repository, error: error.message || 'NÃ£o foi possÃ­vel abrir o repositÃ³rio.' }));
-    return;
-  }
-  const child = spawn(exe, [], { detached: true, stdio: 'ignore', windowsHide: false, cwd: path.dirname(exe) });
-  child.once('error', error => resolve({ opened: false, installed: true, error: error.code || error.message || 'Falha ao iniciar o processo.' }));
-  child.once('spawn', () => { child.unref(); resolve({ opened: true, installed: true }); });
-}));
-
-let updater = null;
-let updateAvailable = false;
-let updateDownloading = false;
-let updateDownloaded = false;
-let installWhenReady = false;
-let quitRequestedForUpdate = false;
-let mainWindow = null;
-let splashWindow = null;
-let splashProgress = { progress: 4, status: 'Inicializando o DJ Studio PROâ€¦' };
-let splashVisibleAt = 0;
-let latestUpdateInfo = null;
-let manualCheck = false;
-let startupUpdateCheckDone = !app.isPackaged || process.platform !== 'win32';
-let latestUpdateState = { state: 'idle' };
-const displayReturnStates = new WeakMap();
-ipcMain.handle('djstudio:displays:list', () => screen.getAllDisplays().map((display, index) => ({
-  id: display.id,
-  label: display.label || (display.id === screen.getPrimaryDisplay().id ? 'Monitor principal' : `Monitor ${index + 1}`),
-  bounds: display.bounds,
-  workArea: display.workArea,
-  isPrimary: display.id === screen.getPrimaryDisplay().id
-})));
-ipcMain.handle('djstudio:displays:place', (event, { displayId, fullScreen = false } = {}) => {
-  const win = BrowserWindow.fromWebContents(event.sender);
-  const display = screen.getAllDisplays().find(item => String(item.id) === String(displayId));
-  if (!win || win.isDestroyed() || !display) return { ok: false, message: 'Monitor indisponÃ­vel.' };
-  if (!displayReturnStates.has(win)) {
-    displayReturnStates.set(win, { bounds: win.getBounds(), maximized: win.isMaximized(), fullScreen: win.isFullScreen() });
-  }
-  if (win.isFullScreen()) win.setFullScreen(false);
-  if (win.isMaximized()) win.unmaximize();
-  if (fullScreen) {
-    win.setBounds(display.bounds);
-    win.setFullScreen(true);
-  } else {
-    const area = display.workArea;
-    const width = Math.min(1440, Math.max(700, Math.round(area.width * 0.88)));
-    const height = Math.min(920, Math.max(480, Math.round(area.height * 0.88)));
-    win.setBounds({ x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2), width, height });
-  }
-  return { ok: true, displayId: display.id, fullScreen };
-});
-ipcMain.handle('djstudio:displays:restore', event => {
-  const win = BrowserWindow.fromWebContents(event.sender);
-  if (!win || win.isDestroyed()) return { ok: false };
-  const previous = displayReturnStates.get(win);
-  if (!previous) return { ok: true, restored: false };
-  displayReturnStates.delete(win);
-  if (win.isFullScreen()) win.setFullScreen(false);
-  win.setBounds(previous.bounds);
-  if (previous.maximized) win.maximize();
-  if (previous.fullScreen) win.setFullScreen(true);
-  return { ok: true, restored: true };
-});
-function completeStartupUpdateCheck() {
-  if (startupUpdateCheckDone) return;
-  startupUpdateCheckDone = true;
-  if (mainWindow && mainWindow.__djStudioReady) revealMainWindow(mainWindow);
-}
-
-function publishSplashProgress(progress, status) {
-  splashProgress = { progress: Math.max(splashProgress.progress, Math.min(100, Math.max(0, progress))), status };
-  if (splashWindow && !splashWindow.isDestroyed() && !splashWindow.webContents.isLoading()) {
-    splashWindow.webContents.send('djstudio:splash:progress', splashProgress);
-  }
-}
-function closeSplash() {
-  const splash = splashWindow;
-  splashWindow = null;
-  if (!splash || splash.isDestroyed()) return;
-  try { splash.close(); } catch { splash.destroy(); }
-}
-function createSplashWindow() {
-  try {
-    const splash = new BrowserWindow({
-      width: 960,
-      height: 540,
-      useContentSize: true,
-      center: true,
-      frame: false,
-      resizable: false,
-      maximizable: false,
-      minimizable: false,
-      fullscreenable: false,
-      skipTaskbar: true,
-      show: false,
-      backgroundColor: '#090B0F',
-      title: 'DJ Studio PRO â€” Inicializando',
-      webPreferences: {
-        preload: path.join(__dirname, 'app', 'splash-preload.js'),
-        contextIsolation: true,
-        nodeIntegration: false,
-        sandbox: true
-      }
-    });
-    splashWindow = splash;
-    let fallbackTimer = setTimeout(() => {
-      if (!splash.isDestroyed() && !splash.isVisible()) {
-        splash.show();
-        splashVisibleAt = Date.now();
-      }
-    }, 4000);
-    fallbackTimer.unref();
-    splash.once('ready-to-show', () => {
-      clearTimeout(fallbackTimer);
-      if (splash.isDestroyed()) return;
-      splash.show();
-      splashVisibleAt = Date.now();
-      if (!splash.webContents.isLoading()) splash.webContents.send('djstudio:splash:progress', splashProgress);
-    });
-    splash.webContents.on('did-finish-load', () => {
-      if (!splash.isDestroyed()) splash.webContents.send('djstudio:splash:progress', splashProgress);
-    });
-    splash.webContents.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
-      if (!isMainFrame) return;
-      clearTimeout(fallbackTimer);
-      console.error(`Falha ao carregar a tela inicial (${code}): ${description} â€” ${url}`);
-      if (splashWindow === splash) splashWindow = null;
-      if (!splash.isDestroyed()) splash.destroy();
-    });
-    splash.on('closed', () => { if (splashWindow === splash) splashWindow = null; });
-    splash.loadFile(path.join(__dirname, 'app', 'splash.html')).catch(error => {
-      clearTimeout(fallbackTimer);
-      console.error('NÃ£o foi possÃ­vel abrir a tela inicial:', error);
-      if (splashWindow === splash) splashWindow = null;
-      if (!splash.isDestroyed()) splash.destroy();
-    });
-    return splash;
-  } catch (error) {
-    console.error('NÃ£o foi possÃ­vel criar a tela inicial:', error);
-    splashWindow = null;
-    return null;
-  }
-}
-function revealMainWindow(win) {
-  if (!win || win.isDestroyed() || win.__djStudioRevealed) return;
-  win.__djStudioRevealed = true;
-  publishSplashProgress(100, 'Pronto para mixar.');
-  const minSplashDuration = splashVisibleAt ? 650 : 0;
-  const remaining = Math.max(0, minSplashDuration - (Date.now() - splashVisibleAt));
-  setTimeout(() => {
-    if (win.isDestroyed()) return;
-    win.show();
-    closeSplash();
-  }, remaining);
-}
-function publishUpdateState(state, extra = {}) {
-  latestUpdateState = { state, currentVersion: app.getVersion(), ...(latestUpdateInfo || {}), ...extra };
-  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('djstudio:update:state', latestUpdateState);
-}
-
-ipcMain.handle('djstudio:update:version', () => ({ currentVersion: app.getVersion(), packaged: app.isPackaged }));
-ipcMain.handle('djstudio:update:state', () => latestUpdateState);
-ipcMain.handle('djstudio:update:check', async () => {
-  if (!updater) { publishUpdateState('unavailable', { message: 'A verificaÃ§Ã£o online fica disponÃ­vel na versÃ£o instalada do Windows.' }); return { available: false }; }
-  manualCheck = true; publishUpdateState('checking');
-  try { const result = await updater.checkForUpdates(); if (result?.updateInfo) latestUpdateInfo = { latestVersion: result.updateInfo.version, releaseNotes: result.updateInfo.releaseNotes, releaseDate: result.updateInfo.releaseDate }; return { available: updateAvailable, latestVersion: latestUpdateInfo?.latestVersion || null }; }
-  catch (error) { manualCheck = false; publishUpdateState('error', { message: error.message || 'Falha ao verificar atualizaÃ§Ãµes.' }); return { available: false, message: error.message || 'Falha ao verificar atualizaÃ§Ãµes.' }; }
-});
-ipcMain.handle('djstudio:update:install', () => {
-  if (!updater) return { started: false };
-  installWhenReady = true;
-  if (updateDownloaded) { updater.quitAndInstall(false, true); return { started: true, installing: true }; }
-  publishUpdateState('downloading', { message: 'A instalaÃ§Ã£o comeÃ§arÃ¡ assim que o download terminar.' });
-  return { started: true, installing: false };
-});
-function setupAutoUpdates() {
-  if (!app.isPackaged || process.platform !== 'win32') { completeStartupUpdateCheck(); return; }
-  try { ({ autoUpdater: updater } = require('electron-updater')); }
-  catch (error) { console.error('NÃ£o foi possÃ­vel carregar o sistema de atualizaÃ§Ãµes:', error); completeStartupUpdateCheck(); return; }
-  updater.autoDownload = false;
-  updater.autoInstallOnAppQuit = true;
-  updater.allowDowngrade = false;
-  updater.on('error', error => { updateDownloading = false; publishUpdateState('error', { message: error.message || 'Falha ao atualizar.' }); completeStartupUpdateCheck(); console.error('Erro ao atualizar o DJ Studio PRO:', error); });
-  updater.on('update-available', info => {
-    updateAvailable = true;
-    latestUpdateInfo = { latestVersion: info.version, releaseNotes: info.releaseNotes, releaseDate: info.releaseDate };
-    publishUpdateState('available', latestUpdateInfo);
-    completeStartupUpdateCheck();
-    startUpdateDownload();
-    manualCheck = false;
-  });
-  updater.on('update-not-available', info => {
-    updateAvailable = false; manualCheck = false;
-    latestUpdateInfo = { latestVersion: app.getVersion(), releaseNotes: info?.releaseNotes || [] };
-    publishUpdateState('current', latestUpdateInfo);
-    completeStartupUpdateCheck();
-  });
-  updater.on('download-progress', progress => publishUpdateState('downloading', { progress: progress.percent, transferred: progress.transferred, total: progress.total, bytesPerSecond: progress.bytesPerSecond }));
-  updater.on('update-downloaded', info => {
-    updateDownloading = false; updateDownloaded = true; updateAvailable = false;
-    latestUpdateInfo = { latestVersion: info.version, releaseNotes: info.releaseNotes, releaseDate: info.releaseDate };
-    publishUpdateState('downloaded', latestUpdateInfo);
-    if (quitRequestedForUpdate || installWhenReady) updater.quitAndInstall(false, true);
-  });
-  app.whenReady().then(() => {
-    setTimeout(() => updater.checkForUpdates().catch(error => { publishUpdateState('error', { message: error.message }); completeStartupUpdateCheck(); console.error('Falha ao verificar atualizaÃ§Ãµes:', error); }), 250);
-    setInterval(() => { if (!updateAvailable && !updateDownloading && !updateDownloaded) updater.checkForUpdates().catch(error => console.error('Falha ao verificar atualizaÃ§Ãµes:', error)); }, 6 * 60 * 60 * 1000).unref();
-  });
-}
-function startUpdateDownload() {
-  if (!updater || !updateAvailable || updateDownloading || updateDownloaded) return;
-  updateDownloading = true;
-  publishUpdateState('downloading', { progress: 0 });
-  updater.downloadUpdate().catch(error => { updateDownloading = false; publishUpdateState('error', { message: error.message || 'Falha ao baixar atualizaÃ§Ã£o.' }); console.error('Falha ao baixar atualizaÃ§Ã£o:', error); });
-}
-app.on('before-quit', event => {
-  if (updateDownloading && (installWhenReady || quitRequestedForUpdate)) { event.preventDefault(); quitRequestedForUpdate = true; }
-});
-function createWindow() {
-  publishSplashProgress(28, 'Preparando os mÃ³dulos de Ã¡udioâ€¦');
-  const workArea = screen.getPrimaryDisplay().workAreaSize;
-  const minWidth = Math.min(900, Math.max(520, workArea.width - 24));
-  const minHeight = Math.min(620, Math.max(420, workArea.height - 24));
-  const width = Math.min(1440, Math.max(minWidth, workArea.width - 64));
-  const height = Math.min(920, Math.max(minHeight, workArea.height - 64));
-  const win = new BrowserWindow({ icon: fs.existsSync(path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico')) ? path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico') : path.join(__dirname, 'build', 'LOGO-DJSTUDIO.ico'), width, height, minWidth, minHeight, resizable: true, maximizable: true, fullscreenable: true, title: 'DJ Studio PRO', backgroundColor: '#0b0d10', autoHideMenuBar: true, show: false, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
-  mainWindow = win;
-  win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
-  publishSplashProgress(42, 'Carregando a biblioteca musicalâ€¦');
-  win.webContents.on('did-start-loading', () => publishSplashProgress(50, 'Carregando a biblioteca musicalâ€¦'));
-  win.webContents.once('dom-ready', () => publishSplashProgress(72, 'Inicializando Ã¡udio e anÃ¡liseâ€¦'));
-  win.webContents.once('did-finish-load', () => publishSplashProgress(91, 'Finalizando interface e controladoresâ€¦'));
-  win.webContents.on('did-fail-load', (_event, code, description, url, isMainFrame) => {
-    if (!isMainFrame) return;
-    console.error(`Falha ao carregar a janela principal (${code}): ${description} â€” ${url}`);
-    revealMainWindow(win);
-  });
-  let startupFallback = setTimeout(() => revealMainWindow(win), 25000);
-  startupFallback.unref();
-  win.once('ready-to-show', () => {
-    clearTimeout(startupFallback);
-    publishSplashProgress(96, startupUpdateCheckDone ? 'Preparando a cabineâ€¦' : 'Verificando novidades para vocÃªâ€¦');
-    win.__djStudioReady = true;
-    if (startupUpdateCheckDone) revealMainWindow(win);
-    else { win.__updateGateTimer = setTimeout(() => { completeStartupUpdateCheck(); }, 12000); win.__updateGateTimer.unref(); }
-  });
-  win.loadFile(path.join(__dirname, 'app', 'index.html')).catch(error => {
-    clearTimeout(startupFallback);
-    console.error('NÃ£o foi possÃ­vel carregar o DJ Studio PRO:', error);
-    revealMainWindow(win);
-  });
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://') || url.startsWith('http://')) shell.openExternal(url);
-    return { action: 'deny' };
-  });
-  win.webContents.on('will-navigate', (event, url) => {
-    const localFile = url.startsWith('file://');
-    if (!localFile && (url.startsWith('https://') || url.startsWith('http://'))) {
-      event.preventDefault();
-      shell.openExternal(url);
-    }
-  });
-}
-
-app.whenReady().then(() => {
-  publishSplashProgress(14, 'Preparando o ambiente de Ã¡udioâ€¦');
-  createSplashWindow();
-  createWindow();
-  setupAutoUpdates();
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
-});
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
-
-
+YªçŠx³¬uç%j·Â+ar‰ì¶ë•ë_¢ºÞjË"‚v›•ëÚ®&›•ëj¹âžðjÇ^rV«yÜ"¶(žËn±é^µú+­æ¬²('i¹^½ªâi¹^±½¹ÍÐì…ÁÀ°	É½ÝÍ•É]¥¹‘½Ü°Í¡•±°°¥Á5…¥¸°ÍÉ••¸ô€ôÉ•ÅÕ¥É” •±•ÑÉ½¸œ¤ì)½¹ÍÐÁ…Ñ €ôÉ•ÅÕ¥É” ¹½‘”éÁ…Ñ œ¤ì)½¹ÍÐ™Ì€ôÉ•ÅÕ¥É” ¹½‘”é™Ìœ¤ì)½¹ÍÐìÍÁ…Ý¸ô€ôÉ•ÅÕ¥É” ¹½‘”é¡¥±‘}ÁÉ½•ÍÌœ¤ì)½¹ÍÐìÁ…Ñ¡Q½¥±•UI0ô€ôÉ•ÅÕ¥É” ¹½‘”éÕÉ°œ¤ì()½¹ÍÐ…ÁÁA…Ñ¡Ì€ôì(€ÍÕ¹…¹‘¼èmÁ…Ñ ¹©½¥¸¡ÁÉ½•ÍÌ¹•¹Ø¹AÉ½É…µ¥±•Ìñð€éqqAÉ½É…´¥±•Ìœ°€MU99<œ°€MU99<¹•á”œ¤°Á…Ñ ¹©½¥¸¡ÁÉ½•ÍÌ¹•¹Ø¹1=1AAQñðÁ…Ñ ¹©½¥¸¡…ÁÀ¹•ÑA…Ñ  ¡½µ”œ¤°€ÁÁ…Ñ„œ°€1½…°œ¤°€AÉ½É…µÌœ°€MU99<œ°€MU99<¹•á”œ¥t°(€µ¥á½É„èmÁ…Ñ ¹©½¥¸¡ÁÉ½•ÍÌ¹•¹Ø¹1=1AAQñðÁ…Ñ ¹©½¥¸¡…ÁÀ¹•ÑA…Ñ  ¡½µ”œ¤°€ÁÁ…Ñ„œ°€1½…°œ¤°€AÉ½É…µÌœ°€5¥á½É„œ°€5¥á½É„¹•á”œ¥t°(€Ý…Ù•Íå¹¬èmÁ…Ñ ¹©½¥¸¡ÁÉ½•ÍÌ¹•¹Ø¹AÉ½É…µ¥±•Ìñð€éqqAÉ½É…´¥±•Ìœ°€]…Ù•Må¹¬œ°€]…Ù•Må¹¬¹•á”œ¤°Á…Ñ ¹©½¥¸¡ÁÉ½•ÍÌ¹•¹Ø¹1=1AAQñðÁ…Ñ ¹©½¥¸¡…ÁÀ¹•ÑA…Ñ  ¡½µ”œ¤°€ÁÁ…Ñ„œ°€1½…°œ¤°€AÉ½É…µÌœ°€]…Ù•Må¹¬œ°€]…Ù•Må¹¬¹•á”œ¥t)ôì)½¹ÍÐ…ÁÁI•Á½Í¥Ñ½É¥•Ì€ôì(€ÍÕ¹…¹‘¼è€¡ÑÑÁÌè¼½¥Ñ¡Õˆ¹½´½™•É¹•á‘•Í¥¹•Èµµå¬½MU99<œ°(€Ý…Ù•Íå¹¬è€¡ÑÑÁÌè¼½¥Ñ¡Õˆ¹½´½™•É¹•á‘•Í¥¹•Èµµå¬½]YMe9,œ°)ôì)½¹ÍÐ…ÁÁAÉ•Ù¥•Ý¥±•Ì€ôì(€‘©ÍÑÕ‘¥¼è€‘©ÍÑÕ‘¥¼µÁÉ•Ù¥•Ü¹µÀÐœ°(€µ•±½‘äè€µ•±½‘äµÁÉ•Ù¥•Ü¹µÀÐœ°(€ÍÕ¹…¹‘¼è€ÍÕ¹…¹‘¼µÁÉ•Ù¥•Ü¹µÀÐœ°(€µ¥á½É„è€µ¥á½É„µÁÉ•Ù¥•Ü¹µÀÐœ°(€Ý…Ù•Íå¹¬è€Ý…Ù•Íå¹¬µÁÉ•Ù¥•Ü¹µÀÐœ)ôì)½¹ÍÐ­¹½Ý¹ÁÀ€ô¥€ôø=‰©•Ð¹ÁÉ½Ñ½ÑåÁ”¹¡…Í=Ý¹AÉ½Á•ÉÑä¹…±°¡…ÁÁA…Ñ¡Ì°¥¤€ü…ÁÁA…Ñ¡Ím¥‘t¹™¥¹¡™¥±”€ôø™Ì¹•á¥ÍÑÍMå¹Œ¡™¥±”¤¤ñð¹Õ±°€è¹Õ±°ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼é…ÁÁÌµ…Ù…¥±…‰±”œ°€ ¤€ôø=‰©•Ð¹™É½µ¹ÑÉ¥•Ì¡=‰©•Ð¹•¹ÑÉ¥•Ì¡…ÁÁA…Ñ¡Ì¤¹µ…À ¡m¥°…¹‘¥‘…Ñ•Ít¤€ôøm¥°…¹‘¥‘…Ñ•Ì¹Í½µ”¡™¥±”€ôø™Ì¹•á¥ÍÑÍMå¹Œ¡™¥±”¤¥t¤¤¤ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼é…ÁÀµÁÉ•Ù¥•Üœ°€¡}•Ù•¹Ð°¥¤€ôøì(€½¹ÍÐ™¥±•¹…µ”€ô…ÁÁAÉ•Ù¥•Ý¥±•Ím¥‘tì(€¥˜€ …™¥±•¹…µ”¤É•ÑÕÉ¸¹Õ±°ì(€½¹ÍÐÁÉ•Ù¥•ÝA…Ñ €ôÁ…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€…ÁÀœ°€…ÍÍ•ÑÌœ°€…ÁÁÌœ°™¥±•¹…µ”¤ì(€É•ÑÕÉ¸™Ì¹•á¥ÍÑÍMå¹Œ¡ÁÉ•Ù¥•ÝA…Ñ ¤€üÁ…Ñ¡Q½¥±•UI0¡ÁÉ•Ù¥•ÝA…Ñ ¤¹¡É•˜€è¹Õ±°ì)ô¤ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼é½Á•¸µ…ÁÀœ°€¡•Ù•¹Ð°¥¤€ôø¹•ÜAÉ½µ¥Í”¡É•Í½±Ù”€ôøì(€½¹ÍÐ½Ý¹•È€ô	É½ÝÍ•É]¥¹‘½Ü¹™É½µ]•‰½¹Ñ•¹ÑÌ¡•Ù•¹Ð¹Í•¹‘•È¤ì(€¥˜€ …½Ý¹•Èñð€…=‰©•Ð¹ÁÉ½Ñ½ÑåÁ”¹¡…Í=Ý¹AÉ½Á•ÉÑä¹…±°¡…ÁÁA…Ñ¡Ì°¥¤¤É•ÑÕÉ¸É•Í½±Ù”¡ì½Á•¹•è™…±Í”°¥¹ÍÑ…±±•è™…±Í”ô¤ì(€½¹ÍÐ•á”€ô­¹½Ý¹ÁÀ¡¥¤ì(€¥˜€ …•á”¤ì(€€€½¹ÍÐÉ•Á½Í¥Ñ½Éä€ô…ÁÁI•Á½Í¥Ñ½É¥•Ím¥‘tì(€€€¥˜€ …É•Á½Í¥Ñ½Éä¤É•ÑÕÉ¸É•Í½±Ù”¡ì½Á•¹•è™…±Í”°¥¹ÍÑ…±±•è™…±Í”°½µ¥¹M½½¸èÑÉÕ”ô¤ì(€€€Í¡•±°¹½Á•¹áÑ•É¹…°¡É•Á½Í¥Ñ½Éä¤¹Ñ¡•¸  ¤€ôøÉ•Í½±Ù”¡ì½Á•¹•è™…±Í”°¥¹ÍÑ…±±•è™…±Í”°É•‘¥É•Ñ•èÑÉÕ”°É•Á½Í¥Ñ½Éäô¤¤¹…Ñ ¡•ÉÉ½È€ôøÉ•Í½±Ù”¡ì½Á•¹•è™…±Í”°¥¹ÍÑ…±±•è™…±Í”°É•‘¥É•Ñ•è™…±Í”°É•Á½Í¥Ñ½Éä°•ÉÉ½Èè•ÉÉ½È¹µ•ÍÍ…”ñð€;¼™½¤Á½ÍÏµÙ•°…‰É¥È¼É•Á½Í¥ÓÍÉ¥¼¸œô¤¤ì(€€€É•ÑÕÉ¸ì(€ô(€½¹ÍÐ¡¥±€ôÍÁ…Ý¸¡•á”°mt°ì‘•Ñ…¡•èÑÉÕ”°ÍÑ‘¥¼è€¥¹½É”œ°Ý¥¹‘½ÝÍ!¥‘”è™…±Í”°ÝèÁ…Ñ ¹‘¥É¹…µ”¡•á”¤ô¤ì(€¡¥±¹½¹” •ÉÉ½Èœ°•ÉÉ½È€ôøÉ•Í½±Ù”¡ì½Á•¹•è™…±Í”°¥¹ÍÑ…±±•èÑÉÕ”°•ÉÉ½Èè•ÉÉ½È¹½‘”ñð•ÉÉ½È¹µ•ÍÍ…”ñð€…±¡„…¼¥¹¥¥…È¼ÁÉ½•ÍÍ¼¸œô¤¤ì(€¡¥±¹½¹” ÍÁ…Ý¸œ°€ ¤€ôøì¡¥±¹Õ¹É•˜ ¤ìÉ•Í½±Ù”¡ì½Á•¹•èÑÉÕ”°¥¹ÍÑ…±±•èÑÉÕ”ô¤ìô¤ì)ô¤¤ì()±•ÐÕÁ‘…Ñ•È€ô¹Õ±°ì)±•ÐÕÁ‘…Ñ•Ù…¥±…‰±”€ô™…±Í”ì)±•ÐÕÁ‘…Ñ•½Ý¹±½…‘¥¹œ€ô™…±Í”ì)±•ÐÕÁ‘…Ñ•½Ý¹±½…‘•€ô™…±Í”ì)±•Ð¥¹ÍÑ…±±]¡•¹I•…‘ä€ô™…±Í”ì)±•ÐÅÕ¥ÑI•ÅÕ•ÍÑ•‘½ÉUÁ‘…Ñ”€ô™…±Í”ì)±•Ðµ…¥¹]¥¹‘½Ü€ô¹Õ±°ì)±•ÐÍÁ±…Í¡]¥¹‘½Ü€ô¹Õ±°ì)±•ÐÍÁ±…Í¡AÉ½É•ÍÌ€ôìÁÉ½É•ÍÌè€Ð°ÍÑ…ÑÕÌè€%¹¥¥…±¥é…¹‘¼¼(MÑÕ‘¥¼AI?Š˜œôì)±•ÐÍÁ±…Í¡Y¥Í¥‰±•Ð€ô€Àì)±•Ð±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼€ô¹Õ±°ì)±•Ðµ…¹Õ…±¡•¬€ô™…±Í”ì)±•ÐÍÑ…ÉÑÕÁUÁ‘…Ñ•¡•­½¹”€ô€……ÁÀ¹¥ÍA…­…•ñðÁÉ½•ÍÌ¹Á±…Ñ™½É´€„ôô€Ý¥¸ÌÈœì)±•Ð±…Ñ•ÍÑUÁ‘…Ñ•MÑ…Ñ”€ôìÍÑ…Ñ”è€¥‘±”œôì)½¹ÍÐ‘¥ÍÁ±…åI•ÑÕÉ¹MÑ…Ñ•Ì€ô¹•Ü]•…­5…À ¤ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼é‘¥ÍÁ±…åÌé±¥ÍÐœ°€ ¤€ôøÍÉ••¸¹•Ñ±±¥ÍÁ±…åÌ ¤¹µ…À ¡‘¥ÍÁ±…ä°¥¹‘•à¤€ôø€¡ì(€¥è‘¥ÍÁ±…ä¹¥°(€±…‰•°è‘¥ÍÁ±…ä¹±…‰•°ñð€¡‘¥ÍÁ±…ä¹¥€ôôôÍÉ••¸¹•ÑAÉ¥µ…Éå¥ÍÁ±…ä ¤¹¥€ü€5½¹¥Ñ½ÈÁÉ¥¹¥Á…°œ€è5½¹¥Ñ½È€‘í¥¹‘•à€¬€Åõ€¤°(€‰½Õ¹‘Ìè‘¥ÍÁ±…ä¹‰½Õ¹‘Ì°(€Ý½É­É•„è‘¥ÍÁ±…ä¹Ý½É­É•„°(€¥ÍAÉ¥µ…Éäè‘¥ÍÁ±…ä¹¥€ôôôÍÉ••¸¹•ÑAÉ¥µ…Éå¥ÍÁ±…ä ¤¹¥)ô¤¤¤ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼é‘¥ÍÁ±…åÌéÁ±…”œ°€¡•Ù•¹Ð°ì‘¥ÍÁ±…å%°™Õ±±MÉ••¸€ô™…±Í”ô€ôíô¤€ôøì(€½¹ÍÐÝ¥¸€ô	É½ÝÍ•É]¥¹‘½Ü¹™É½µ]•‰½¹Ñ•¹ÑÌ¡•Ù•¹Ð¹Í•¹‘•È¤ì(€½¹ÍÐ‘¥ÍÁ±…ä€ôÍÉ••¸¹•Ñ±±¥ÍÁ±…åÌ ¤¹™¥¹¡¥Ñ•´€ôøMÑÉ¥¹œ¡¥Ñ•´¹¥¤€ôôôMÑÉ¥¹œ¡‘¥ÍÁ±…å%¤¤ì(€¥˜€ …Ý¥¸ñðÝ¥¸¹¥Í•ÍÑÉ½å• ¤ñð€…‘¥ÍÁ±…ä¤É•ÑÕÉ¸ì½¬è™…±Í”°µ•ÍÍ…”è€5½¹¥Ñ½È¥¹‘¥ÍÁ½»µÙ•°¸œôì(€¥˜€ …‘¥ÍÁ±…åI•ÑÕÉ¹MÑ…Ñ•Ì¹¡…Ì¡Ý¥¸¤¤ì(€€€‘¥ÍÁ±…åI•ÑÕÉ¹MÑ…Ñ•Ì¹Í•Ð¡Ý¥¸°ì‰½Õ¹‘ÌèÝ¥¸¹•Ñ	½Õ¹‘Ì ¤°µ…á¥µ¥é•èÝ¥¸¹¥Í5…á¥µ¥é• ¤°™Õ±±MÉ••¸èÝ¥¸¹¥ÍÕ±±MÉ••¸ ¤ô¤ì(€ô(€¥˜€¡Ý¥¸¹¥ÍÕ±±MÉ••¸ ¤¤Ý¥¸¹Í•ÑÕ±±MÉ••¸¡™…±Í”¤ì(€¥˜€¡Ý¥¸¹¥Í5…á¥µ¥é• ¤¤Ý¥¸¹Õ¹µ…á¥µ¥é” ¤ì(€¥˜€¡™Õ±±MÉ••¸¤ì(€€€Ý¥¸¹Í•Ñ	½Õ¹‘Ì¡‘¥ÍÁ±…ä¹‰½Õ¹‘Ì¤ì(€€€Ý¥¸¹Í•ÑÕ±±MÉ••¸¡ÑÉÕ”¤ì(€ô•±Í”ì(€€€½¹ÍÐ…É•„€ô‘¥ÍÁ±…ä¹Ý½É­É•„ì(€€€½¹ÍÐÝ¥‘Ñ €ô5…Ñ ¹µ¥¸ ÄÐÐÀ°5…Ñ ¹µ…à ÜÀÀ°5…Ñ ¹É½Õ¹¡…É•„¹Ý¥‘Ñ €¨€À¸àà¤¤¤ì(€€€½¹ÍÐ¡•¥¡Ð€ô5…Ñ ¹µ¥¸ äÈÀ°5…Ñ ¹µ…à ÐàÀ°5…Ñ ¹É½Õ¹¡…É•„¹¡•¥¡Ð€¨€À¸àà¤¤¤ì(€€€Ý¥¸¹Í•Ñ	½Õ¹‘Ì¡ìàè…É•„¹à€¬5…Ñ ¹É½Õ¹ ¡…É•„¹Ý¥‘Ñ €´Ý¥‘Ñ ¤€¼€È¤°äè…É•„¹ä€¬5…Ñ ¹É½Õ¹ ¡…É•„¹¡•¥¡Ð€´¡•¥¡Ð¤€¼€È¤°Ý¥‘Ñ °¡•¥¡Ðô¤ì(€ô(€É•ÑÕÉ¸ì½¬èÑÉÕ”°‘¥ÍÁ±…å%è‘¥ÍÁ±…ä¹¥°™Õ±±MÉ••¸ôì)ô¤ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼é‘¥ÍÁ±…åÌéÉ•ÍÑ½É”œ°•Ù•¹Ð€ôøì(€½¹ÍÐÝ¥¸€ô	É½ÝÍ•É]¥¹‘½Ü¹™É½µ]•‰½¹Ñ•¹ÑÌ¡•Ù•¹Ð¹Í•¹‘•È¤ì(€¥˜€ …Ý¥¸ñðÝ¥¸¹¥Í•ÍÑÉ½å• ¤¤É•ÑÕÉ¸ì½¬è™…±Í”ôì(€½¹ÍÐÁÉ•Ù¥½ÕÌ€ô‘¥ÍÁ±…åI•ÑÕÉ¹MÑ…Ñ•Ì¹•Ð¡Ý¥¸¤ì(€¥˜€ …ÁÉ•Ù¥½ÕÌ¤É•ÑÕÉ¸ì½¬èÑÉÕ”°É•ÍÑ½É•è™…±Í”ôì(€‘¥ÍÁ±…åI•ÑÕÉ¹MÑ…Ñ•Ì¹‘•±•Ñ”¡Ý¥¸¤ì(€¥˜€¡Ý¥¸¹¥ÍÕ±±MÉ••¸ ¤¤Ý¥¸¹Í•ÑÕ±±MÉ••¸¡™…±Í”¤ì(€Ý¥¸¹Í•Ñ	½Õ¹‘Ì¡ÁÉ•Ù¥½ÕÌ¹‰½Õ¹‘Ì¤ì(€¥˜€¡ÁÉ•Ù¥½ÕÌ¹µ…á¥µ¥é•¤Ý¥¸¹µ…á¥µ¥é” ¤ì(€¥˜€¡ÁÉ•Ù¥½ÕÌ¹™Õ±±MÉ••¸¤Ý¥¸¹Í•ÑÕ±±MÉ••¸¡ÑÉÕ”¤ì(€É•ÑÕÉ¸ì½¬èÑÉÕ”°É•ÍÑ½É•èÑÉÕ”ôì)ô¤ì)™Õ¹Ñ¥½¸½µÁ±•Ñ•MÑ…ÉÑÕÁUÁ‘…Ñ•¡•¬ ¤ì(€¥˜€¡ÍÑ…ÉÑÕÁUÁ‘…Ñ•¡•­½¹”¤É•ÑÕÉ¸ì(€ÍÑ…ÉÑÕÁUÁ‘…Ñ•¡•­½¹”€ôÑÉÕ”ì(€¥˜€¡µ…¥¹]¥¹‘½Ü€˜˜µ…¥¹]¥¹‘½Ü¹}}‘©MÑÕ‘¥½I•…‘ä¤É•Ù•…±5…¥¹]¥¹‘½Ü¡µ…¥¹]¥¹‘½Ü¤ì)ô()™Õ¹Ñ¥½¸ÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ¡ÁÉ½É•ÍÌ°ÍÑ…ÑÕÌ¤ì(€ÍÁ±…Í¡AÉ½É•ÍÌ€ôìÁÉ½É•ÍÌè5…Ñ ¹µ…à¡ÍÁ±…Í¡AÉ½É•ÍÌ¹ÁÉ½É•ÍÌ°5…Ñ ¹µ¥¸ ÄÀÀ°5…Ñ ¹µ…à À°ÁÉ½É•ÍÌ¤¤¤°ÍÑ…ÑÕÌôì(€¥˜€¡ÍÁ±…Í¡]¥¹‘½Ü€˜˜€…ÍÁ±…Í¡]¥¹‘½Ü¹¥Í•ÍÑÉ½å• ¤€˜˜€…ÍÁ±…Í¡]¥¹‘½Ü¹Ý•‰½¹Ñ•¹ÑÌ¹¥Í1½…‘¥¹œ ¤¤ì(€€€ÍÁ±…Í¡]¥¹‘½Ü¹Ý•‰½¹Ñ•¹ÑÌ¹Í•¹ ‘©ÍÑÕ‘¥¼éÍÁ±…Í éÁÉ½É•ÍÌœ°ÍÁ±…Í¡AÉ½É•ÍÌ¤ì(€ô)ô)™Õ¹Ñ¥½¸±½Í•MÁ±…Í  ¤ì(€½¹ÍÐÍÁ±…Í €ôÍÁ±…Í¡]¥¹‘½Üì(€ÍÁ±…Í¡]¥¹‘½Ü€ô¹Õ±°ì(€¥˜€ …ÍÁ±…Í ñðÍÁ±…Í ¹¥Í•ÍÑÉ½å• ¤¤É•ÑÕÉ¸ì(€ÑÉäìÍÁ±…Í ¹±½Í” ¤ìô…Ñ ìÍÁ±…Í ¹‘•ÍÑÉ½ä ¤ìô)ô)™Õ¹Ñ¥½¸É•…Ñ•MÁ±…Í¡]¥¹‘½Ü ¤ì(€ÑÉäì(€€€½¹ÍÐÍÁ±…Í €ô¹•Ü	É½ÝÍ•É]¥¹‘½Ü¡ì(€€€€€Ý¥‘Ñ è€äØÀ°(€€€€€¡•¥¡Ðè€ÔÐÀ°(€€€€€ÕÍ•½¹Ñ•¹ÑM¥é”èÑÉÕ”°(€€€€€•¹Ñ•ÈèÑÉÕ”°(€€€€€™É…µ”è™…±Í”°(€€€€€É•Í¥é…‰±”è™…±Í”°(€€€€€µ…á¥µ¥é…‰±”è™…±Í”°(€€€€€µ¥¹¥µ¥é…‰±”è™…±Í”°(€€€€€™Õ±±ÍÉ••¹…‰±”è™…±Í”°(€€€€€Í­¥ÁQ…Í­‰…ÈèÑÉÕ”°(€€€€€Í¡½Üè™…±Í”°(€€€€€‰…­É½Õ¹‘½±½Èè€œŒÀäÁÁœ°(€€€€€Ñ¥Ñ±”è€(MÑÕ‘¥¼AI<ƒŠP%¹¥¥…±¥é…¹‘¼œ°(€€€€€Ý•‰AÉ•™•É•¹•Ìèì(€€€€€€€ÁÉ•±½…èÁ…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€…ÁÀœ°€ÍÁ±…Í µÁÉ•±½…¹©Ìœ¤°(€€€€€€€½¹Ñ•áÑ%Í½±…Ñ¥½¸èÑÉÕ”°(€€€€€€€¹½‘•%¹Ñ•É…Ñ¥½¸è™…±Í”°(€€€€€€€Í…¹‘‰½àèÑÉÕ”(€€€€€ô(€€€ô¤ì(€€€ÍÁ±…Í¡]¥¹‘½Ü€ôÍÁ±…Í ì(€€€±•Ð™…±±‰…­Q¥µ•È€ôÍ•ÑQ¥µ•½ÕÐ  ¤€ôøì(€€€€€¥˜€ …ÍÁ±…Í ¹¥Í•ÍÑÉ½å• ¤€˜˜€…ÍÁ±…Í ¹¥ÍY¥Í¥‰±” ¤¤ì(€€€€€€€ÍÁ±…Í ¹Í¡½Ü ¤ì(€€€€€€€ÍÁ±…Í¡Y¥Í¥‰±•Ð€ô…Ñ”¹¹½Ü ¤ì(€€€€€ô(€€€ô°€ÐÀÀÀ¤ì(€€€™…±±‰…­Q¥µ•È¹Õ¹É•˜ ¤ì(€€€ÍÁ±…Í ¹½¹” É•…‘äµÑ¼µÍ¡½Üœ°€ ¤€ôøì(€€€€€±•…ÉQ¥µ•½ÕÐ¡™…±±‰…­Q¥µ•È¤ì(€€€€€¥˜€¡ÍÁ±…Í ¹¥Í•ÍÑÉ½å• ¤¤É•ÑÕÉ¸ì(€€€€€ÍÁ±…Í ¹Í¡½Ü ¤ì(€€€€€ÍÁ±…Í¡Y¥Í¥‰±•Ð€ô…Ñ”¹¹½Ü ¤ì(€€€€€¥˜€ …ÍÁ±…Í ¹Ý•‰½¹Ñ•¹ÑÌ¹¥Í1½…‘¥¹œ ¤¤ÍÁ±…Í ¹Ý•‰½¹Ñ•¹ÑÌ¹Í•¹ ‘©ÍÑÕ‘¥¼éÍÁ±…Í éÁÉ½É•ÍÌœ°ÍÁ±…Í¡AÉ½É•ÍÌ¤ì(€€€ô¤ì(€€€ÍÁ±…Í ¹Ý•‰½¹Ñ•¹ÑÌ¹½¸ ‘¥µ™¥¹¥Í µ±½…œ°€ ¤€ôøì(€€€€€¥˜€ …ÍÁ±…Í ¹¥Í•ÍÑÉ½å• ¤¤ÍÁ±…Í ¹Ý•‰½¹Ñ•¹ÑÌ¹Í•¹ ‘©ÍÑÕ‘¥¼éÍÁ±…Í éÁÉ½É•ÍÌœ°ÍÁ±…Í¡AÉ½É•ÍÌ¤ì(€€€ô¤ì(€€€ÍÁ±…Í ¹Ý•‰½¹Ñ•¹ÑÌ¹½¸ ‘¥µ™…¥°µ±½…œ°€¡}•Ù•¹Ð°½‘”°‘•ÍÉ¥ÁÑ¥½¸°ÕÉ°°¥Í5…¥¹É…µ”¤€ôøì(€€€€€¥˜€ …¥Í5…¥¹É…µ”¤É•ÑÕÉ¸ì(€€€€€±•…ÉQ¥µ•½ÕÐ¡™…±±‰…­Q¥µ•È¤ì(€€€€€½¹Í½±”¹•ÉÉ½È¡…±¡„…¼…ÉÉ•…È„Ñ•±„¥¹¥¥…°€ ‘í½‘•ô¤è€‘í‘•ÍÉ¥ÁÑ¥½¹ôƒŠP€‘íÕÉ±õ€¤ì(€€€€€¥˜€¡ÍÁ±…Í¡]¥¹‘½Ü€ôôôÍÁ±…Í ¤ÍÁ±…Í¡]¥¹‘½Ü€ô¹Õ±°ì(€€€€€¥˜€ …ÍÁ±…Í ¹¥Í•ÍÑÉ½å• ¤¤ÍÁ±…Í ¹‘•ÍÑÉ½ä ¤ì(€€€ô¤ì(€€€ÍÁ±…Í ¹½¸ ±½Í•œ°€ ¤€ôøì¥˜€¡ÍÁ±…Í¡]¥¹‘½Ü€ôôôÍÁ±…Í ¤ÍÁ±…Í¡]¥¹‘½Ü€ô¹Õ±°ìô¤ì(€€€ÍÁ±…Í ¹±½…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€…ÁÀœ°€ÍÁ±…Í ¹¡Ñµ°œ¤¤¹…Ñ ¡•ÉÉ½È€ôøì(€€€€€±•…ÉQ¥µ•½ÕÐ¡™…±±‰…­Q¥µ•È¤ì(€€€€€½¹Í½±”¹•ÉÉ½È ;¼™½¤Á½ÍÏµÙ•°…‰É¥È„Ñ•±„¥¹¥¥…°èœ°•ÉÉ½È¤ì(€€€€€¥˜€¡ÍÁ±…Í¡]¥¹‘½Ü€ôôôÍÁ±…Í ¤ÍÁ±…Í¡]¥¹‘½Ü€ô¹Õ±°ì(€€€€€¥˜€ …ÍÁ±…Í ¹¥Í•ÍÑÉ½å• ¤¤ÍÁ±…Í ¹‘•ÍÑÉ½ä ¤ì(€€€ô¤ì(€€€É•ÑÕÉ¸ÍÁ±…Í ì(€ô…Ñ €¡•ÉÉ½È¤ì(€€€½¹Í½±”¹•ÉÉ½È ;¼™½¤Á½ÍÏµÙ•°É¥…È„Ñ•±„¥¹¥¥…°èœ°•ÉÉ½È¤ì(€€€ÍÁ±…Í¡]¥¹‘½Ü€ô¹Õ±°ì(€€€É•ÑÕÉ¸¹Õ±°ì(€ô)ô)™Õ¹Ñ¥½¸É•Ù•…±5…¥¹]¥¹‘½Ü¡Ý¥¸¤ì(€¥˜€ …Ý¥¸ñðÝ¥¸¹¥Í•ÍÑÉ½å• ¤ñðÝ¥¸¹}}‘©MÑÕ‘¥½I•Ù•…±•¤É•ÑÕÉ¸ì(€Ý¥¸¹}}‘©MÑÕ‘¥½I•Ù•…±•€ôÑÉÕ”ì(€ÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ ÄÀÀ°€AÉ½¹Ñ¼Á…É„µ¥á…È¸œ¤ì(€½¹ÍÐµ¥¹MÁ±…Í¡ÕÉ…Ñ¥½¸€ôÍÁ±…Í¡Y¥Í¥‰±•Ð€ü€ØÔÀ€è€Àì(€½¹ÍÐÉ•µ…¥¹¥¹œ€ô5…Ñ ¹µ…à À°µ¥¹MÁ±…Í¡ÕÉ…Ñ¥½¸€´€¡…Ñ”¹¹½Ü ¤€´ÍÁ±…Í¡Y¥Í¥‰±•Ð¤¤ì(€Í•ÑQ¥µ•½ÕÐ  ¤€ôøì(€€€¥˜€¡Ý¥¸¹¥Í•ÍÑÉ½å• ¤¤É•ÑÕÉ¸ì(€€€Ý¥¸¹Í¡½Ü ¤ì(€€€±½Í•MÁ±…Í  ¤ì(€ô°É•µ…¥¹¥¹œ¤ì)ô)™Õ¹Ñ¥½¸ÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ”¡ÍÑ…Ñ”°•áÑÉ„€ôíô¤ì(€±…Ñ•ÍÑUÁ‘…Ñ•MÑ…Ñ”€ôìÍÑ…Ñ”°ÕÉÉ•¹ÑY•ÉÍ¥½¸è…ÁÀ¹•ÑY•ÉÍ¥½¸ ¤°€¸¸¸¡±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼ñðíô¤°€¸¸¹•áÑÉ„ôì(€¥˜€¡µ…¥¹]¥¹‘½Ü€˜˜€…µ…¥¹]¥¹‘½Ü¹¥Í•ÍÑÉ½å• ¤¤µ…¥¹]¥¹‘½Ü¹Ý•‰½¹Ñ•¹ÑÌ¹Í•¹ ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”éÍÑ…Ñ”œ°±…Ñ•ÍÑUÁ‘…Ñ•MÑ…Ñ”¤ì)ô()¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”éÙ•ÉÍ¥½¸œ°€ ¤€ôø€¡ìÕÉÉ•¹ÑY•ÉÍ¥½¸è…ÁÀ¹•ÑY•ÉÍ¥½¸ ¤°Á…­…•è…ÁÀ¹¥ÍA…­…•ô¤¤ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”éÍÑ…Ñ”œ°€ ¤€ôø±…Ñ•ÍÑUÁ‘…Ñ•MÑ…Ñ”¤ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”é¡•¬œ°…Íå¹Œ€ ¤€ôøì(€¥˜€ …ÕÁ‘…Ñ•È¤ìÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” Õ¹…Ù…¥±…‰±”œ°ìµ•ÍÍ…”è€Ù•É¥™¥‡Ÿ¼½¹±¥¹”™¥„‘¥ÍÁ½»µÙ•°¹„Ù•ÉÏ¼¥¹ÍÑ…±…‘„‘¼]¥¹‘½ÝÌ¸œô¤ìÉ•ÑÕÉ¸ì…Ù…¥±…‰±”è™…±Í”ôìô(€µ…¹Õ…±¡•¬€ôÑÉÕ”ìÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” ¡•­¥¹œœ¤ì(€ÑÉäì½¹ÍÐÉ•ÍÕ±Ð€ô…Ý…¥ÐÕÁ‘…Ñ•È¹¡•­½ÉUÁ‘…Ñ•Ì ¤ì¥˜€¡É•ÍÕ±Ðü¹ÕÁ‘…Ñ•%¹™¼¤±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼€ôì±…Ñ•ÍÑY•ÉÍ¥½¸èÉ•ÍÕ±Ð¹ÕÁ‘…Ñ•%¹™¼¹Ù•ÉÍ¥½¸°É•±•…Í•9½Ñ•ÌèÉ•ÍÕ±Ð¹ÕÁ‘…Ñ•%¹™¼¹É•±•…Í•9½Ñ•Ì°É•±•…Í•…Ñ”èÉ•ÍÕ±Ð¹ÕÁ‘…Ñ•%¹™¼¹É•±•…Í•…Ñ”ôìÉ•ÑÕÉ¸ì…Ù…¥±…‰±”èÕÁ‘…Ñ•Ù…¥±…‰±”°±…Ñ•ÍÑY•ÉÍ¥½¸è±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼ü¹±…Ñ•ÍÑY•ÉÍ¥½¸ñð¹Õ±°ôìô(€…Ñ €¡•ÉÉ½È¤ìµ…¹Õ…±¡•¬€ô™…±Í”ìÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” •ÉÉ½Èœ°ìµ•ÍÍ…”è•ÉÉ½È¹µ•ÍÍ…”ñð€…±¡„…¼Ù•É¥™¥…È…ÑÕ…±¥é‡ŸÕ•Ì¸œô¤ìÉ•ÑÕÉ¸ì…Ù…¥±…‰±”è™…±Í”°µ•ÍÍ…”è•ÉÉ½È¹µ•ÍÍ…”ñð€…±¡„…¼Ù•É¥™¥…È…ÑÕ…±¥é‡ŸÕ•Ì¸œôìô)ô¤ì)¥Á5…¥¸¹¡…¹‘±” ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”é¥¹ÍÑ…±°œ°€ ¤€ôøì(€¥˜€ …ÕÁ‘…Ñ•È¤É•ÑÕÉ¸ìÍÑ…ÉÑ•è™…±Í”ôì(€¥¹ÍÑ…±±]¡•¹I•…‘ä€ôÑÉÕ”ì(€¥˜€¡ÕÁ‘…Ñ•½Ý¹±½…‘•¤ìÕÁ‘…Ñ•È¹ÅÕ¥Ñ¹‘%¹ÍÑ…±°¡™…±Í”°ÑÉÕ”¤ìÉ•ÑÕÉ¸ìÍÑ…ÉÑ•èÑÉÕ”°¥¹ÍÑ…±±¥¹œèÑÉÕ”ôìô(€ÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” ‘½Ý¹±½…‘¥¹œœ°ìµ•ÍÍ…”è€¥¹ÍÑ…±‡Ÿ¼½µ—…Ë„…ÍÍ¥´ÅÕ”¼‘½Ý¹±½…Ñ•Éµ¥¹…È¸œô¤ì(€É•ÑÕÉ¸ìÍÑ…ÉÑ•èÑÉÕ”°¥¹ÍÑ…±±¥¹œè™…±Í”ôì)ô¤ì)™Õ¹Ñ¥½¸Í•ÑÕÁÕÑ½UÁ‘…Ñ•Ì ¤ì(€¥˜€ ……ÁÀ¹¥ÍA…­…•ñðÁÉ½•ÍÌ¹Á±…Ñ™½É´€„ôô€Ý¥¸ÌÈœ¤ì½µÁ±•Ñ•MÑ…ÉÑÕÁUÁ‘…Ñ•¡•¬ ¤ìÉ•ÑÕÉ¸ìô(€ÑÉäì€¡ì…ÕÑ½UÁ‘…Ñ•ÈèÕÁ‘…Ñ•Èô€ôÉ•ÅÕ¥É” •±•ÑÉ½¸µÕÁ‘…Ñ•Èœ¤¤ìô(€…Ñ €¡•ÉÉ½È¤ì½¹Í½±”¹•ÉÉ½È ;¼™½¤Á½ÍÏµÙ•°…ÉÉ•…È¼Í¥ÍÑ•µ„‘”…ÑÕ…±¥é‡ŸÕ•Ìèœ°•ÉÉ½È¤ì½µÁ±•Ñ•MÑ…ÉÑÕÁUÁ‘…Ñ•¡•¬ ¤ìÉ•ÑÕÉ¸ìô(€ÕÁ‘…Ñ•È¹…ÕÑ½½Ý¹±½…€ô™…±Í”ì(€ÕÁ‘…Ñ•È¹…ÕÑ½%¹ÍÑ…±±=¹ÁÁEÕ¥Ð€ôÑÉÕ”ì(€ÕÁ‘…Ñ•È¹…±±½Ý½Ý¹É…‘”€ô™…±Í”ì(€ÕÁ‘…Ñ•È¹½¸ •ÉÉ½Èœ°•ÉÉ½È€ôøìÕÁ‘…Ñ•½Ý¹±½…‘¥¹œ€ô™…±Í”ìÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” •ÉÉ½Èœ°ìµ•ÍÍ…”è•ÉÉ½È¹µ•ÍÍ…”ñð€…±¡„…¼…ÑÕ…±¥é…È¸œô¤ì½µÁ±•Ñ•MÑ…ÉÑÕÁUÁ‘…Ñ•¡•¬ ¤ì½¹Í½±”¹•ÉÉ½È ÉÉ¼…¼…ÑÕ…±¥é…È¼(MÑÕ‘¥¼AI<èœ°•ÉÉ½È¤ìô¤ì(€ÕÁ‘…Ñ•È¹½¸ ÕÁ‘…Ñ”µ…Ù…¥±…‰±”œ°¥¹™¼€ôøì(€€€ÕÁ‘…Ñ•Ù…¥±…‰±”€ôÑÉÕ”ì(€€€±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼€ôì±…Ñ•ÍÑY•ÉÍ¥½¸è¥¹™¼¹Ù•ÉÍ¥½¸°É•±•…Í•9½Ñ•Ìè¥¹™¼¹É•±•…Í•9½Ñ•Ì°É•±•…Í•…Ñ”è¥¹™¼¹É•±•…Í•…Ñ”ôì(€€€ÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” …Ù…¥±…‰±”œ°±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼¤ì(€€€½µÁ±•Ñ•MÑ…ÉÑÕÁUÁ‘…Ñ•¡•¬ ¤ì(€€€ÍÑ…ÉÑUÁ‘…Ñ•½Ý¹±½… ¤ì(€€€µ…¹Õ…±¡•¬€ô™…±Í”ì(€ô¤ì(€ÕÁ‘…Ñ•È¹½¸ ÕÁ‘…Ñ”µ¹½Ðµ…Ù…¥±…‰±”œ°¥¹™¼€ôøì(€€€ÕÁ‘…Ñ•Ù…¥±…‰±”€ô™…±Í”ìµ…¹Õ…±¡•¬€ô™…±Í”ì(€€€±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼€ôì±…Ñ•ÍÑY•ÉÍ¥½¸è…ÁÀ¹•ÑY•ÉÍ¥½¸ ¤°É•±•…Í•9½Ñ•Ìè¥¹™¼ü¹É•±•…Í•9½Ñ•Ìñðmtôì(€€€ÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” ÕÉÉ•¹Ðœ°±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼¤ì(€€€½µÁ±•Ñ•MÑ…ÉÑÕÁUÁ‘…Ñ•¡•¬ ¤ì(€ô¤ì(€ÕÁ‘…Ñ•È¹½¸ ‘½Ý¹±½…µÁÉ½É•ÍÌœ°ÁÉ½É•ÍÌ€ôøÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” ‘½Ý¹±½…‘¥¹œœ°ìÁÉ½É•ÍÌèÁÉ½É•ÍÌ¹Á•É•¹Ð°ÑÉ…¹Í™•ÉÉ•èÁÉ½É•ÍÌ¹ÑÉ…¹Í™•ÉÉ•°Ñ½Ñ…°èÁÉ½É•ÍÌ¹Ñ½Ñ…°°‰åÑ•ÍA•ÉM•½¹èÁÉ½É•ÍÌ¹‰åÑ•ÍA•ÉM•½¹ô¤¤ì(€ÕÁ‘…Ñ•È¹½¸ ÕÁ‘…Ñ”µ‘½Ý¹±½…‘•œ°¥¹™¼€ôøì(€€€ÕÁ‘…Ñ•½Ý¹±½…‘¥¹œ€ô™…±Í”ìÕÁ‘…Ñ•½Ý¹±½…‘•€ôÑÉÕ”ìÕÁ‘…Ñ•Ù…¥±…‰±”€ô™…±Í”ì(€€€±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼€ôì±…Ñ•ÍÑY•ÉÍ¥½¸è¥¹™¼¹Ù•ÉÍ¥½¸°É•±•…Í•9½Ñ•Ìè¥¹™¼¹É•±•…Í•9½Ñ•Ì°É•±•…Í•…Ñ”è¥¹™¼¹É•±•…Í•…Ñ”ôì(€€€ÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” ‘½Ý¹±½…‘•œ°±…Ñ•ÍÑUÁ‘…Ñ•%¹™¼¤ì(€€€¥˜€¡ÅÕ¥ÑI•ÅÕ•ÍÑ•‘½ÉUÁ‘…Ñ”ñð¥¹ÍÑ…±±]¡•¹I•…‘ä¤ÕÁ‘…Ñ•È¹ÅÕ¥Ñ¹‘%¹ÍÑ…±°¡™…±Í”°ÑÉÕ”¤ì(€ô¤ì(€…ÁÀ¹Ý¡•¹I•…‘ä ¤¹Ñ¡•¸  ¤€ôøì(€€€Í•ÑQ¥µ•½ÕÐ  ¤€ôøÕÁ‘…Ñ•È¹¡•­½ÉUÁ‘…Ñ•Ì ¤¹…Ñ ¡•ÉÉ½È€ôøìÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” •ÉÉ½Èœ°ìµ•ÍÍ…”è•ÉÉ½È¹µ•ÍÍ…”ô¤ì½µÁ±•Ñ•MÑ…ÉÑÕÁUÁ‘…Ñ•¡•¬ ¤ì½¹Í½±”¹•ÉÉ½È …±¡„…¼Ù•É¥™¥…È…ÑÕ…±¥é‡ŸÕ•Ìèœ°•ÉÉ½È¤ìô¤°€ÈÔÀ¤ì(€€€Í•Ñ%¹Ñ•ÉÙ…°  ¤€ôøì¥˜€ …ÕÁ‘…Ñ•Ù…¥±…‰±”€˜˜€…ÕÁ‘…Ñ•½Ý¹±½…‘¥¹œ€˜˜€…ÕÁ‘…Ñ•½Ý¹±½…‘•¤ÕÁ‘…Ñ•È¹¡•­½ÉUÁ‘…Ñ•Ì ¤¹…Ñ ¡•ÉÉ½È€ôø½¹Í½±”¹•ÉÉ½È …±¡„…¼Ù•É¥™¥…È…ÑÕ…±¥é‡ŸÕ•Ìèœ°•ÉÉ½È¤¤ìô°€Ø€¨€ØÀ€¨€ØÀ€¨€ÄÀÀÀ¤¹Õ¹É•˜ ¤ì(€ô¤ì)ô)™Õ¹Ñ¥½¸ÍÑ…ÉÑUÁ‘…Ñ•½Ý¹±½… ¤ì(€¥˜€ …ÕÁ‘…Ñ•Èñð€…ÕÁ‘…Ñ•Ù…¥±…‰±”ñðÕÁ‘…Ñ•½Ý¹±½…‘¥¹œñðÕÁ‘…Ñ•½Ý¹±½…‘•¤É•ÑÕÉ¸ì(€ÕÁ‘…Ñ•½Ý¹±½…‘¥¹œ€ôÑÉÕ”ì(€ÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” ‘½Ý¹±½…‘¥¹œœ°ìÁÉ½É•ÍÌè€Àô¤ì(€ÕÁ‘…Ñ•È¹‘½Ý¹±½…‘UÁ‘…Ñ” ¤¹…Ñ ¡•ÉÉ½È€ôøìÕÁ‘…Ñ•½Ý¹±½…‘¥¹œ€ô™…±Í”ìÁÕ‰±¥Í¡UÁ‘…Ñ•MÑ…Ñ” •ÉÉ½Èœ°ìµ•ÍÍ…”è•ÉÉ½È¹µ•ÍÍ…”ñð€…±¡„…¼‰…¥á…È…ÑÕ…±¥é‡Ÿ¼¸œô¤ì½¹Í½±”¹•ÉÉ½È …±¡„…¼‰…¥á…È…ÑÕ…±¥é‡Ÿ¼èœ°•ÉÉ½È¤ìô¤ì)ô)…ÁÀ¹½¸ ‰•™½É”µÅÕ¥Ðœ°•Ù•¹Ð€ôøì(€¥˜€¡ÕÁ‘…Ñ•½Ý¹±½…‘¥¹œ€˜˜€¡¥¹ÍÑ…±±]¡•¹I•…‘äñðÅÕ¥ÑI•ÅÕ•ÍÑ•‘½ÉUÁ‘…Ñ”¤¤ì•Ù•¹Ð¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤ìÅÕ¥ÑI•ÅÕ•ÍÑ•‘½ÉUÁ‘…Ñ”€ôÑÉÕ”ìô)ô¤ì)™Õ¹Ñ¥½¸É•…Ñ•]¥¹‘½Ü ¤ì(€ÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ Èà°€AÉ•Á…É…¹‘¼½Ì·Í‘Õ±½Ì‘”ƒ…Õ‘¥¿Š˜œ¤ì(€½¹ÍÐÝ½É­É•„€ôÍÉ••¸¹•ÑAÉ¥µ…Éå¥ÍÁ±…ä ¤¹Ý½É­É•…M¥é”ì(€½¹ÍÐµ¥¹]¥‘Ñ €ô5…Ñ ¹µ¥¸ äÀÀ°5…Ñ ¹µ…à ÔÈÀ°Ý½É­É•„¹Ý¥‘Ñ €´€ÈÐ¤¤ì(€½¹ÍÐµ¥¹!•¥¡Ð€ô5…Ñ ¹µ¥¸ ØÈÀ°5…Ñ ¹µ…à ÐÈÀ°Ý½É­É•„¹¡•¥¡Ð€´€ÈÐ¤¤ì(€½¹ÍÐÝ¥‘Ñ €ô5…Ñ ¹µ¥¸ ÄÐÐÀ°5…Ñ ¹µ…à¡µ¥¹]¥‘Ñ °Ý½É­É•„¹Ý¥‘Ñ €´€ØÐ¤¤ì(€½¹ÍÐ¡•¥¡Ð€ô5…Ñ ¹µ¥¸ äÈÀ°5…Ñ ¹µ…à¡µ¥¹!•¥¡Ð°Ý½É­É•„¹¡•¥¡Ð€´€ØÐ¤¤ì(€½¹ÍÐÝ¥¸€ô¹•Ü	É½ÝÍ•É]¥¹‘½Ü¡ì¥½¸è™Ì¹•á¥ÍÑÍMå¹Œ¡Á…Ñ ¹©½¥¸¡Á…Ñ ¹‘¥É¹…µ”¡ÁÉ½•ÍÌ¹•á•A…Ñ ¤°€(MÑÕ‘¥¼AI<¹¥¼œ¤¤€üÁ…Ñ ¹©½¥¸¡Á…Ñ ¹‘¥É¹…µ”¡ÁÉ½•ÍÌ¹•á•A…Ñ ¤°€(MÑÕ‘¥¼AI<¹¥¼œ¤€èÁ…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€‰Õ¥±œ°€1=<µ)MQU%<¹¥¼œ¤°Ý¥‘Ñ °¡•¥¡Ð°µ¥¹]¥‘Ñ °µ¥¹!•¥¡Ð°É•Í¥é…‰±”èÑÉÕ”°µ…á¥µ¥é…‰±”èÑÉÕ”°™Õ±±ÍÉ••¹…‰±”èÑÉÕ”°Ñ¥Ñ±”è€(MÑÕ‘¥¼AI<œ°‰…­É½Õ¹‘½±½Èè€œŒÁˆÁÄÀœ°…ÕÑ½!¥‘•5•¹Õ	…ÈèÑÉÕ”°Í¡½Üè™…±Í”°Ý•‰AÉ•™•É•¹•ÌèìÁÉ•±½…èÁ…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€ÁÉ•±½…¹©Ìœ¤°½¹Ñ•áÑ%Í½±…Ñ¥½¸èÑÉÕ”°¹½‘•%¹Ñ•É…Ñ¥½¸è™…±Í”°Í…¹‘‰½àèÑÉÕ”ôô¤ì(€µ…¥¹]¥¹‘½Ü€ôÝ¥¸ì(€Ý¥¸¹½¸ ±½Í•œ°€ ¤€ôøì¥˜€¡µ…¥¹]¥¹‘½Ü€ôôôÝ¥¸¤µ…¥¹]¥¹‘½Ü€ô¹Õ±°ìô¤ì(€ÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ ÐÈ°€…ÉÉ•…¹‘¼„‰¥‰±¥½Ñ•„µÕÍ¥…³Š˜œ¤ì(€Ý¥¸¹Ý•‰½¹Ñ•¹ÑÌ¹½¸ ‘¥µÍÑ…ÉÐµ±½…‘¥¹œœ°€ ¤€ôøÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ ÔÀ°€…ÉÉ•…¹‘¼„‰¥‰±¥½Ñ•„µÕÍ¥…³Š˜œ¤¤ì(€Ý¥¸¹Ý•‰½¹Ñ•¹ÑÌ¹½¹” ‘½´µÉ•…‘äœ°€ ¤€ôøÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ ÜÈ°€%¹¥¥…±¥é…¹‘¼ƒ…Õ‘¥¼”…»…±¥Í—Š˜œ¤¤ì(€Ý¥¸¹Ý•‰½¹Ñ•¹ÑÌ¹½¹” ‘¥µ™¥¹¥Í µ±½…œ°€ ¤€ôøÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ äÄ°€¥¹…±¥é…¹‘¼¥¹Ñ•É™…””½¹ÑÉ½±…‘½É•ÏŠ˜œ¤¤ì(€Ý¥¸¹Ý•‰½¹Ñ•¹ÑÌ¹½¸ ‘¥µ™…¥°µ±½…œ°€¡}•Ù•¹Ð°½‘”°‘•ÍÉ¥ÁÑ¥½¸°ÕÉ°°¥Í5…¥¹É…µ”¤€ôøì(€€€¥˜€ …¥Í5…¥¹É…µ”¤É•ÑÕÉ¸ì(€€€½¹Í½±”¹•ÉÉ½È¡…±¡„…¼…ÉÉ•…È„©…¹•±„ÁÉ¥¹¥Á…°€ ‘í½‘•ô¤è€‘í‘•ÍÉ¥ÁÑ¥½¹ôƒŠP€‘íÕÉ±õ€¤ì(€€€É•Ù•…±5…¥¹]¥¹‘½Ü¡Ý¥¸¤ì(€ô¤ì(€±•ÐÍÑ…ÉÑÕÁ…±±‰…¬€ôÍ•ÑQ¥µ•½ÕÐ  ¤€ôøÉ•Ù•…±5…¥¹]¥¹‘½Ü¡Ý¥¸¤°€ÈÔÀÀÀ¤ì(€ÍÑ…ÉÑÕÁ…±±‰…¬¹Õ¹É•˜ ¤ì(€Ý¥¸¹½¹” É•…‘äµÑ¼µÍ¡½Üœ°€ ¤€ôøì(€€€±•…ÉQ¥µ•½ÕÐ¡ÍÑ…ÉÑÕÁ…±±‰…¬¤ì(€€€ÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ äØ°ÍÑ…ÉÑÕÁUÁ‘…Ñ•¡•­½¹”€ü€AÉ•Á…É…¹‘¼„…‰¥¹—Š˜œ€è€Y•É¥™¥…¹‘¼¹½Ù¥‘…‘•ÌÁ…É„Ù½«Š˜œ¤ì(€€€Ý¥¸¹}}‘©MÑÕ‘¥½I•…‘ä€ôÑÉÕ”ì(€€€¥˜€¡ÍÑ…ÉÑÕÁUÁ‘…Ñ•¡•­½¹”¤É•Ù•…±5…¥¹]¥¹‘½Ü¡Ý¥¸¤ì(€€€•±Í”ìÝ¥¸¹}}ÕÁ‘…Ñ•…Ñ•Q¥µ•È€ôÍ•ÑQ¥µ•½ÕÐ  ¤€ôøì½µÁ±•Ñ•MÑ…ÉÑÕÁUÁ‘…Ñ•¡•¬ ¤ìô°€ÄÈÀÀÀ¤ìÝ¥¸¹}}ÕÁ‘…Ñ•…Ñ•Q¥µ•È¹Õ¹É•˜ ¤ìô(€ô¤ì(€Ý¥¸¹±½…‘¥±”¡Á…Ñ ¹©½¥¸¡}}‘¥É¹…µ”°€…ÁÀœ°€¥¹‘•à¹¡Ñµ°œ¤¤¹…Ñ ¡•ÉÉ½È€ôøì(€€€±•…ÉQ¥µ•½ÕÐ¡ÍÑ…ÉÑÕÁ…±±‰…¬¤ì(€€€½¹Í½±”¹•ÉÉ½È ;¼™½¤Á½ÍÏµÙ•°…ÉÉ•…È¼(MÑÕ‘¥¼AI<èœ°•ÉÉ½È¤ì(€€€É•Ù•…±5…¥¹]¥¹‘½Ü¡Ý¥¸¤ì(€ô¤ì(€Ý¥¸¹Ý•‰½¹Ñ•¹ÑÌ¹Í•Ñ]¥¹‘½Ý=Á•¹!…¹‘±•È ¡ìÕÉ°ô¤€ôøì(€€€¥˜€¡ÕÉ°¹ÍÑ…ÉÑÍ]¥Ñ  ¡ÑÑÁÌè¼¼œ¤ñðÕÉ°¹ÍÑ…ÉÑÍ]¥Ñ  ¡ÑÑÀè¼¼œ¤¤Í¡•±°¹½Á•¹áÑ•É¹…°¡ÕÉ°¤ì(€€€É•ÑÕÉ¸ì…Ñ¥½¸è€‘•¹äœôì(€ô¤ì(€Ý¥¸¹Ý•‰½¹Ñ•¹ÑÌ¹½¸ Ý¥±°µ¹…Ù¥…Ñ”œ°€¡•Ù•¹Ð°ÕÉ°¤€ôøì(€€€½¹ÍÐ±½…±¥±”€ôÕÉ°¹ÍÑ…ÉÑÍ]¥Ñ  ™¥±”è¼¼œ¤ì(€€€¥˜€ …±½…±¥±”€˜˜€¡ÕÉ°¹ÍÑ…ÉÑÍ]¥Ñ  ¡ÑÑÁÌè¼¼œ¤ñðÕÉ°¹ÍÑ…ÉÑÍ]¥Ñ  ¡ÑÑÀè¼¼œ¤¤¤ì(€€€€€•Ù•¹Ð¹ÁÉ•Ù•¹Ñ•™…Õ±Ð ¤ì(€€€€€Í¡•±°¹½Á•¹áÑ•É¹…°¡ÕÉ°¤ì(€€€ô(€ô¤ì)ô()…ÁÀ¹Ý¡•¹I•…‘ä ¤¹Ñ¡•¸  ¤€ôøì(€ÁÕ‰±¥Í¡MÁ±…Í¡AÉ½É•ÍÌ ÄÐ°€AÉ•Á…É…¹‘¼¼…µ‰¥•¹Ñ”‘”ƒ…Õ‘¥¿Š˜œ¤ì(€É•…Ñ•MÁ±…Í¡]¥¹‘½Ü ¤ì(€É•…Ñ•]¥¹‘½Ü ¤ì(€Í•ÑÕÁÕÑ½UÁ‘…Ñ•Ì ¤ì(€…ÁÀ¹½¸ …Ñ¥Ù…Ñ”œ°€ ¤€ôøì¥˜€¡	É½ÝÍ•É]¥¹‘½Ü¹•Ñ±±]¥¹‘½ÝÌ ¤¹±•¹Ñ €ôôô€À¤É•…Ñ•]¥¹‘½Ü ¤ìô¤ì)ô¤ì)…ÁÀ¹½¸ Ý¥¹‘½Üµ…±°µ±½Í•œ°€ ¤€ôøì¥˜€¡ÁÉ½•ÍÌ¹Á±…Ñ™½É´€„ôô€‘…ÉÝ¥¸œ¤…ÁÀ¹ÅÕ¥Ð ¤ìô¤ì4(4(4(
