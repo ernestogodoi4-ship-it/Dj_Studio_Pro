@@ -192,7 +192,12 @@ function publishUpdateState(state, extra = {}) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('djstudio:update:state', latestUpdateState);
 }
 
-ipcMain.handle('djstudio:update:version', () => ({ currentVersion: app.getVersion(), packaged: app.isPackaged }));
+ipcMain.handle('djstudio:update:version', () => {
+  let releaseNotes = '';
+  try { releaseNotes = fs.readFileSync(path.join(app.getAppPath(), 'RELEASE_NOTES.md'), 'utf8'); }
+  catch (error) { console.warn('Não foi possível ler as notas locais da versão:', error.message); }
+  return { currentVersion: app.getVersion(), packaged: app.isPackaged, releaseNotes };
+});
 ipcMain.handle('djstudio:update:state', () => latestUpdateState);
 ipcMain.handle('djstudio:update:check', async () => {
   if (!updater) { publishUpdateState('unavailable', { message: 'A verificação online fica disponível na versão instalada do Windows.' }); return { available: false }; }
@@ -253,8 +258,8 @@ app.on('before-quit', event => {
 function createWindow() {
   publishSplashProgress(28, 'Preparando os módulos de áudio…');
   const workArea = screen.getPrimaryDisplay().workAreaSize;
-  const minWidth = Math.min(900, Math.max(520, workArea.width - 24));
-  const minHeight = Math.min(620, Math.max(420, workArea.height - 24));
+  const minWidth = Math.max(320, Math.min(900, workArea.width - 24));
+  const minHeight = Math.max(320, Math.min(620, workArea.height - 24));
   const width = Math.min(1440, Math.max(minWidth, workArea.width - 64));
   const height = Math.min(920, Math.max(minHeight, workArea.height - 64));
   const win = new BrowserWindow({ icon: fs.existsSync(path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico')) ? path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico') : path.join(__dirname, 'build', 'LOGO-DJSTUDIO.ico'), width, height, minWidth, minHeight, resizable: true, maximizable: true, fullscreenable: true, title: 'DJ Studio PRO', backgroundColor: '#0b0d10', autoHideMenuBar: true, show: false, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
