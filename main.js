@@ -14,8 +14,6 @@ const appRepositories = {
   wavesynk: 'https://github.com/fernexdesigner-cmyk/WAVESYNK',
 };
 const appPreviewFiles = {
-  djstudio: 'djstudio-preview.mp4',
-  melody: 'melody-preview.mp4',
   sunando: 'sunando-preview.mp4',
   mixora: 'mixora-preview.mp4',
   wavesynk: 'wavesynk-preview.mp4'

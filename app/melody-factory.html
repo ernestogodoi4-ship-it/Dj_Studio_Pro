@@ -685,17 +685,11 @@ body.dragtrk .deck{outline:1px dashed color-mix(in srgb,var(--accent) 60%,transp
 .ch .ctl .plg{font-size:13px}
 .libsel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0;font-size:12px}.libsel .mini{height:26px;padding:0 9px}.libsel .grow{flex:1}.libsel .warn{border-color:#d64545;color:#ef7b7b}.libsel .warn.confirm{background:#d64545;color:#fff}.libsel b{color:var(--accent)}
 #libList.selmode .trow{grid-template-columns:20px 28px minmax(0,1fr) auto;cursor:pointer;user-select:none;-webkit-user-select:none}#libList .trow.picked{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--card))}.selc{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;margin:0}
-
-/* Cabeçalho responsivo do Melody Studio; botão de retorno próximo à identidade. */
-.transport{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
-.transport>.brand{flex:0 0 auto}.transport>.melody-back{flex:0 0 auto;white-space:nowrap}.transport>*{min-width:0}
-@media(max-width:900px){.transport{gap:6px;padding:7px 9px}.transport>.brand{margin-right:2px}.transport>.melody-back{order:0}}
 </style>
 
 <div class="app">
   <header class="transport">
     <div class="brand"><img class="logo" src="djstudio-logo.ico" alt="Logo DJ Studio"><span>MELODY STUDIO</span></div>
-    <button class="ibtn melody-back" id="btnBackStudio" title="Voltar aos decks do DJ Studio PRO"><span aria-hidden="true">◉</span> Decks</button>
     <button class="ibtn projbtn" id="btnProj" title="Projetos, modelos e backup"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4.5h4l1.5 1.5H14v7H2z"/></svg><span id="projName">Projeto</span></button>
     <div class="tgroup">
       <button class="ibtn play" id="btnPlay" title="Tocar / parar (Espaço)" aria-label="Tocar"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg></button>
@@ -708,6 +702,7 @@ body.dragtrk .deck{outline:1px dashed color-mix(in srgb,var(--accent) 60%,transp
     <button class="ibtn" id="btnSong">Padrão</button>
     <button class="ibtn" id="btnMetro" title="Metrônomo" aria-label="Metrônomo"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M5.5 1.8h5l2.6 12H2.9z"/><path d="M8 11L11.5 4"/><path d="M4.2 9.5h7.6"/></svg></button>
     <button class="ibtn" id="btnPiano" title="Mostrar ou fechar o piano virtual">Piano</button>
+    <button class="ibtn" id="btnBackStudio" title="Voltar aos decks do DJ Studio PRO">← Voltar aos decks</button>
     
     <label class="field">Master <input id="master" type="range" min="0" max="1" step="0.01"></label>
     <canvas id="meter" width="140" height="20" aria-hidden="true"></canvas>
