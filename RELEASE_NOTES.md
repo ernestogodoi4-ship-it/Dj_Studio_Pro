@@ -1,4 +1,7 @@
-# DJ Studio PRO 2.4.16
+# DJ Studio PRO 2.4.17
 
-. Restaurada a base estável da versão 2.4.14 após problemas na 2.4.15.
-. Mantidos os arquivos de atualização automática para instalar o rollback.
+. Criada uma aba Decks dedicada para o mixer e os controles de performance.
+. Arquivos, Histórico, Gravações, Exportar Mix, Análise, Áudio e Atalhos agora ocupam a área de trabalho sem os decks.
+. Versão e novidades da tela inicial sincronizadas com as notas incluídas no aplicativo.
+. Resumo do Playlist Analyzer ampliado para melhorar a leitura e respeitar a preferência por movimento reduzido.
+. Corrigido o título da janela para exibir o nome atual do aplicativo.
