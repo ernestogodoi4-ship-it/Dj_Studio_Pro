@@ -1,1 +1,16 @@
-YªçŠx³¬uç%j·Â+ar‰ì¶ë•ë_¢ºŞjË"‚v›•ëÚ®&›•ëj¹âğjÇ^rV«yÜ"¶(Ën±é^µú+­æ¬²('i¹^½ªâi¹^±½¹ÍĞì½¹Ñ•áÑ	É¥‘”°¥ÁI•¹‘•É•Èô€ôÉ•ÅÕ¥É” •±•ÑÉ½¸œ¤ì)½¹Ñ•áÑ	É¥‘”¹•áÁ½Í•%¹5…¥¹]½É± ‘©MÑÕ‘¥½1…Õ¹¡•Èœ°=‰©•Ğ¹™É••é”¡ì…Ù…¥±…‰±”è€ ¤€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼é…ÁÁÌµ…Ù…¥±…‰±”œ¤°½Á•¸è¥€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼é½Á•¸µ…ÁÀœ°¥¤°ÁÉ•Ù¥•Üè¥€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼é…ÁÀµÁÉ•Ù¥•Üœ°¥¤ô¤¤ì()½¹Ñ•áÑ	É¥‘”¹•áÁ½Í•%¹5…¥¹]½É± ‘©MÑÕ‘¥½¥ÍÁ±…åÌœ°=‰©•Ğ¹™É••é”¡ì(€±¥ÍĞè€ ¤€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼é‘¥ÍÁ±…åÌé±¥ÍĞœ¤°(€Á±…”è€¡‘¥ÍÁ±…å%°™Õ±±MÉ••¸¤€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼é‘¥ÍÁ±…åÌéÁ±…”œ°ì‘¥ÍÁ±…å%°™Õ±±MÉ••¸è	½½±•…¸¡™Õ±±MÉ••¸¤ô¤°(€É•ÍÑ½É”è€ ¤€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼é‘¥ÍÁ±…åÌéÉ•ÍÑ½É”œ¤)ô¤¤ì()½¹Ñ•áÑ	É¥‘”¹•áÁ½Í•%¹5…¥¹]½É± ‘©MÑÕ‘¥½UÁ‘…Ñ•Ìœ°=‰©•Ğ¹™É••é”¡ì(€Ù•ÉÍ¥½¸è€ ¤€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”éÙ•ÉÍ¥½¸œ¤°(€¡•¬è€ ¤€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”é¡•¬œ¤°(€ÍÑ…Ñ”è€ ¤€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”éÍÑ…Ñ”œ¤°(€¥¹ÍÑ…±°è€ ¤€ôø¥ÁI•¹‘•É•È¹¥¹Ù½­” ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”é¥¹ÍÑ…±°œ¤°(€½¹MÑ…Ñ”è…±±‰…¬€ôøì¥˜€¡ÑåÁ•½˜…±±‰…¬€„ôô€™Õ¹Ñ¥½¸œ¤É•ÑÕÉ¸€ ¤€ôøíôì½¹ÍĞ±¥ÍÑ•¹•È€ô€¡}•Ù•¹Ğ°‘…Ñ„¤€ôø…±±‰…¬¡‘…Ñ„¤ì¥ÁI•¹‘•É•È¹½¸ ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”éÍÑ…Ñ”œ°±¥ÍÑ•¹•È¤ìÉ•ÑÕÉ¸€ ¤€ôø¥ÁI•¹‘•É•È¹É•µ½Ù•1¥ÍÑ•¹•È ‘©ÍÑÕ‘¥¼éÕÁ‘…Ñ”éÍÑ…Ñ”œ°±¥ÍÑ•¹•È¤ìô)ô¤¤ì(
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('djStudioLauncher', Object.freeze({ available: () => ipcRenderer.invoke('djstudio:apps-available'), open: id => ipcRenderer.invoke('djstudio:open-app', id), preview: id => ipcRenderer.invoke('djstudio:app-preview', id) }));
+
+contextBridge.exposeInMainWorld('djStudioDisplays', Object.freeze({
+  list: () => ipcRenderer.invoke('djstudio:displays:list'),
+  place: (displayId, fullScreen) => ipcRenderer.invoke('djstudio:displays:place', { displayId, fullScreen: Boolean(fullScreen) }),
+  restore: () => ipcRenderer.invoke('djstudio:displays:restore')
+}));
+
+contextBridge.exposeInMainWorld('djStudioUpdates', Object.freeze({
+  version: () => ipcRenderer.invoke('djstudio:update:version'),
+  check: () => ipcRenderer.invoke('djstudio:update:check'),
+  state: () => ipcRenderer.invoke('djstudio:update:state'),
+  install: () => ipcRenderer.invoke('djstudio:update:install'),
+  onState: callback => { if (typeof callback !== 'function') return () => {}; const listener = (_event, data) => callback(data); ipcRenderer.on('djstudio:update:state', listener); return () => ipcRenderer.removeListener('djstudio:update:state', listener); }
+}));

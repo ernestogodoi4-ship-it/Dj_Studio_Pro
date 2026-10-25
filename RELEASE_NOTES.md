@@ -1,1 +1,33 @@
-YªçŠx³¬uç%j·Â+ar‰ì¶ë•ë_¢ºÞjË"‚v›•ëÚ®&›•ëj¹âžðjÇ^rV«yÜ"¶(žËn±é^µú+­æ¬²('i¹^½ªâi¹^°Œ(MÑÕ‘¥¼AI<€È¸Ð¸ÄÌ((¸=ÌÍ•Á…É…‘½É•ÌÉÅÕ¥Ù½Ì°!¥ÍÓÍÉ¥¼°É…Ù‡ŸÕ•Ì°áÁ½ÉÑ…È5¥à°»…±¥Í”°ƒÕ‘¥¼”Ñ…±¡½Ì…½É„•áÁ…¹‘•´„ƒ…É•„‘”ÑÉ…‰…±¡¼Í•´½Ì‘•­Ì¸(¸…‰„•­Ì…‰É”½Ì‘•­Ì”¼µ¥á•È•´Õµ„ƒ…É•„…µÁ±„”Á½‘”ÕÍ…ÈÕ´µ½¹¥Ñ½ÈÍ•Á…É…‘¼¸(¸=Ì…Ñ…±¡½Ì‘”(MÑÕ‘¥¼AI<°5•±½‘äMÑÕ‘¥¼°MU99<°5¥á½É„”]…Ù•Må¹¬•á¥‰•´ÁË¥Ù¥…ÌÁÉ½µ½¥½¹…¥Ì…¼Á…ÍÍ…È¼µ½ÕÍ””…‰É•´…¼±¥…È¸(¸=Ì…ÉÓÕ•Ì‘¼•½ÍÍ¥ÍÑ•µ„µ…¹Ó©´…Ì…ÁÑÕÉ…Ì‘„¥¹Ñ•É™…”½µ¼É•Í•ÉÙ„”…‰É•´½Ì…Á±¥…Ñ¥Ù½Ì…¼±¥…È¸(¸Ñ•±„¥¹¥¥…°µ…¹Ó¥´¼•ÍÁ•ÑÉ¼‘”ƒ…Õ‘¥¼•´Ñ½‘„„±…ÉÕÉ„‘¼Á…¥¹•°”É•µ½Ù•Ô¼Ù¥¹¥°¥±ÕÍÑÉ…‘¼‘¼‘•ÍÑ…ÅÕ”¸(¸=ÌÁÉ…Ñ½Ì‘½Ì‘•­ÌÕÍ…´……‰…µ•¹Ñ¼‘”Ù¥¹¥°Í•´…ÉÑ”‘”ËÍÑÕ±¼¸(¸Ì¥µ…•¹Ì‘”™Õ¹‘¼…¹Ñ•É¥½É•Ì™½É…´É•µ½Ù¥‘…Ì‘¼(MÑÕ‘¥¼AI<”‘¼5•±½‘äMÑÕ‘¥¼¸((Œ(MÑÕ‘¥¼AI<€È¸Ð¸ÄÈ((¸Ñ•±„¥¹¥¥…°•á¥‰”¼•ÍÁ•ÑÉ¼‘”ƒ…Õ‘¥¼•´Ñ½‘„„±…ÉÕÉ„‘¼Á…¥¹•°ÁÉ¥¹¥Á…°¸(¸=Ì‘•­Ì…¹¡…É…´ÁÉ…Ñ½Ì½´…Á…Ë©¹¥„‘”Ù¥¹¥°°Í•´¥±ÕÍÑÉ‡ŸÕ•Ì½Ô‰É‡¼‘”Ñ½„µ‘¥Í½Ì¸(¸Ñ•±„¥¹¥¥…°É••‰•Ô…ÉÓÕ•ÌÍ½¥…¥Ì”…ÉÓÕ•Ì‘”…ÁÁÌ½´ÁË¥Ù¥…Ì‘”Ûµ‘•¼½Á¥½¹…¥Ì…¼Á…ÍÍ…È¼µ½ÕÍ”ì…Ì…ÁÑÕÉ…Ì½¹Ñ¥¹Õ…´½µ¼¥µ…•´‘”É•Í•ÉÙ„¸(¸<5•±½‘äMÑÕ‘¥¼Á½‘”Í•È…‰•ÉÑ¼•´©…¹•±„½ÔÑ•±„¡•¥„•´Õ´µ½¹¥Ñ½ÈÍ•±•¥½¹…‘¼¸(¸=Ì‘•­Ì”¼µ¥á•ÈÁ½‘•´½ÕÁ…È½ÕÑÉ¼µ½¹¥Ñ½È•´Ñ•±„¡•¥„°½´‰½Ó¼Á…É„Ù½±Ñ…È…¼•ÍÁ‡¼‘”ÑÉ…‰…±¡¼¸(¸=Ì™Õ¹‘½Ì™½Ñ½Ë…™¥½Ì…¹Ñ•É¥½É•Ì™½É…´É•µ½Ù¥‘½Ì‘…Ìƒ…É•…Ì‘¼(MÑÕ‘¥¼”‘¼5•±½‘äMÑÕ‘¥¼¸(¸	½ÓÕ•Ì°™…‘•ÉÌ”½¹ÑÉ½±•Ì‘•Í±¥é…¹Ñ•ÌÉ••‰•É…´……‰…µ•¹Ñ¼¥¹ÍÁ¥É…‘¼•´µ•Í…Ì‘”(¸((Œ(MÑÕ‘¥¼AI<€È¸Ð¸ÄÄ((¸[µ‘•¼•¹Ù¥…‘¼Á•±¼ÕÍ×…É¥¼ÕÍ…‘¼½µ¼™Õ¹‘¼•´±½½À¹„Ñ•±„¥¹¥¥…°°Í•´ƒ…Õ‘¥¼”½´€ÜÀ”‘”½Á…¥‘…‘”¸(¸…µ…‘„•ÍÕÉ„ÁÉ•Í•ÉÙ„„±•¥ÑÕÉ„‘½Ì½¹ÑÉ½±•Ì”Ñ•áÑ½ÌÍ½‰É”¼Ûµ‘•¼¸((Œ(MÑÕ‘¥¼AI<€È¸Ð¸ÄÀ((¸ÁÁÌ]…Ù•Må¹¬°5¥á½É„”MU99<É•½É…¹¥é…‘½Ì•´…ÉÓÕ•Ì¹„Ñ•±„¥¹¥¥…°°½´ÁË¥Ù¥…Ì±¥…Ù•¥Ì”‘•ÍÉ§Ÿ¼…µÁ±¥…‘„…¼Á…ÍÍ…È¼µ½ÕÍ”¸(¸%µ…•¹Ì‘”™Õ¹‘¼ÍÕÑ¥Ì…‘¥¥½¹…‘…Ìƒ€Ñ•±„¥¹¥¥…°°…¼(MÑÕ‘¥¼”…¼5•±½‘äMÑÕ‘¥¼¸(¸9½Ù¥‘…‘•Ì‘„Ù•ÉÏ¼•á¥‰¥‘…Ì•´™…¥á„½¹Óµ¹Õ„”±•ŸµÙ•°ì¹½Ñ…ÌÁ•Éµ…¹••´…•ÍÏµÙ•¥ÌÁ•±„‰…ÉÉ„±…Ñ•É…°¸(¸ƒ5½¹•ÌÍ½¥…¥Ì±¥…Ù•¥ÌÁÉ•Á…É…‘½ÌÁ…É„É••‰•È±¥¹­Ì¸(¸	½Ó¼‘”™•¡…È‘…Ì¹½Ñ…Ì‘”…ÑÕ…±¥é‡Ÿ¼½ÉÉ¥¥‘¼Á…É„µ½ÕÍ”°Ñ½ÅÕ””Ñ•±„Í…Á”¸(¸)…¹•±„¥¹¥¥…°…©ÕÍÑ…‘„…¼•ÍÁ‡¼‘¥ÍÁ½»µÙ•°Á…É„µ•±¡½É…È¼ÕÍ¼•´µ½‘¼©…¹•±„°Ñ•±„¡•¥„”‘¥™•É•¹Ñ•ÌÉ•Í½±×ŸÕ•Ì¸4(
+# DJ Studio PRO 2.4.13
+
+. Os separadores Arquivos, HistÃ³rico, GravaÃ§Ãµes, Exportar Mix, AnÃ¡lise, Ãudio e Atalhos agora expandem a Ã¡rea de trabalho sem os decks.
+. A aba Decks abre os decks e o mixer em uma Ã¡rea ampla e pode usar um monitor separado.
+. Os atalhos de DJ Studio PRO, Melody Studio, SUNANDO, Mixora e WaveSynk exibem prÃ©vias promocionais ao passar o mouse e abrem ao clicar.
+. Os cartÃµes do ecossistema mantÃªm as capturas da interface como reserva e abrem os aplicativos ao clicar.
+. A tela inicial mantÃ©m o espectro de Ã¡udio em toda a largura do painel e removeu o vinil ilustrado do destaque.
+. Os pratos dos decks usam acabamento de vinil sem arte de rÃ³tulo.
+. As imagens de fundo anteriores foram removidas do DJ Studio PRO e do Melody Studio.
+
+# DJ Studio PRO 2.4.12
+
+. A tela inicial exibe o espectro de Ã¡udio em toda a largura do painel principal.
+. Os decks ganharam pratos com aparÃªncia de vinil, sem ilustraÃ§Ãµes ou braÃ§o de toca-discos.
+. A tela inicial recebeu cartÃµes sociais e cartÃµes de apps com prÃ©vias de vÃ­deo opcionais ao passar o mouse; as capturas continuam como imagem de reserva.
+. O Melody Studio pode ser aberto em janela ou tela cheia em um monitor selecionado.
+. Os decks e o mixer podem ocupar outro monitor em tela cheia, com botÃ£o para voltar ao espaÃ§o de trabalho.
+. Os fundos fotogrÃ¡ficos anteriores foram removidos das Ã¡reas do DJ Studio e do Melody Studio.
+. BotÃµes, faders e controles deslizantes receberam acabamento inspirado em mesas de DJ.
+
+# DJ Studio PRO 2.4.11
+
+. VÃ­deo enviado pelo usuÃ¡rio usado como fundo em loop na tela inicial, sem Ã¡udio e com 70% de opacidade.
+. Camada escura preserva a leitura dos controles e textos sobre o vÃ­deo.
+
+# DJ Studio PRO 2.4.10
+
+. Apps WaveSynk, Mixora e SUNANDO reorganizados em cartÃµes na tela inicial, com prÃ©vias clicÃ¡veis e descriÃ§Ã£o ampliada ao passar o mouse.
+. Imagens de fundo sutis adicionadas Ã  tela inicial, ao DJ Studio e ao Melody Studio.
+. Novidades da versÃ£o exibidas em faixa contÃ­nua e legÃ­vel; notas permanecem acessÃ­veis pela barra lateral.
+. Ãcones sociais clicÃ¡veis preparados para receber links.
+. BotÃ£o de fechar das notas de atualizaÃ§Ã£o corrigido para mouse, toque e tecla Escape.
+. Janela inicial ajustada ao espaÃ§o disponÃ­vel para melhorar o uso em modo janela, tela cheia e diferentes resoluÃ§Ãµes.
