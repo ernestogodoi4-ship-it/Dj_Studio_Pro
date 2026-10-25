@@ -5,13 +5,11 @@ const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 
 const appPaths = {
-  melody: [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'Melody Studio', 'Melody Studio.exe'), path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'Melody Studio', 'Melody Studio.exe')],
   sunando: [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'SUNANDO', 'SUNANDO.exe'), path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'SUNANDO', 'SUNANDO.exe')],
   mixora: [path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'Mixora', 'Mixora.exe')],
   wavesynk: [path.join(process.env.ProgramFiles || 'C:\\Program Files', 'WaveSynk', 'WaveSynk.exe'), path.join(process.env.LOCALAPPDATA || path.join(app.getPath('home'), 'AppData', 'Local'), 'Programs', 'WaveSynk', 'WaveSynk.exe')]
 };
 const appRepositories = {
-  melody: 'https://github.com/ernestogodoi4-ship-it/Dj_Studio_Pro/tree/main/melody-studio',
   sunando: 'https://github.com/fernexdesigner-cmyk/SUNANDO',
   wavesynk: 'https://github.com/fernexdesigner-cmyk/WAVESYNK',
 };
