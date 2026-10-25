@@ -1,9 +1,9 @@
-# DJ Studio PRO 2.4.9
+Warning: fs was declared with const; use let for reassignable variables.
+# DJ Studio PRO 2.4.10
 
-. SUNANDO, Mixora e WaveSynk aparecem na barra lateral com ícones, prévias e atalhos.
-. As prévias mostram capturas, recursos e avisos dos aplicativos.
-. Notas de atualização exibidas em texto simples, sem tags HTML.
-. Reações RGB mais sutis, configuráveis para graves, médios, agudos ou espectro completo.
-. Arte de vinil personalizada aplicada à tela inicial e aos decks.
-. Janela de novidades apresentada antes da tela inicial quando uma atualização estiver disponível.
-. Download da atualização com progresso real, mini vinil animado e visual inspirado no WaveSynk.
+. Apps WaveSynk, Mixora e SUNANDO reorganizados em cartões na tela inicial, com prévias clicáveis e descrição ampliada ao passar o mouse.
+. Imagens de fundo sutis adicionadas à tela inicial, ao DJ Studio e ao Melody Studio.
+. Novidades da versão exibidas em faixa contínua e legível; notas permanecem acessíveis pela barra lateral.
+. Ícones sociais clicáveis preparados para receber links.
+. Botão de fechar das notas de atualização corrigido para mouse, toque e tecla Escape.
+. Janela inicial ajustada ao espaço disponível para melhorar o uso em modo janela, tela cheia e diferentes resoluções.

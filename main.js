@@ -1,4 +1,5 @@
-const { app, BrowserWindow, shell, ipcMain } = require('electron');
+Warning: fs was declared with const; use let for reassignable variables.
+const { app, BrowserWindow, shell, ipcMain, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const { spawn } = require('node:child_process');
@@ -200,7 +201,12 @@ app.on('before-quit', event => {
 });
 function createWindow() {
   publishSplashProgress(28, 'Preparando os módulos de áudio…');
-  const win = new BrowserWindow({ icon: fs.existsSync(path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico')) ? path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico') : path.join(__dirname, 'build', 'LOGO-DJSTUDIO.ico'), width: 1440, height: 920, minWidth: 900, minHeight: 620, title: 'DJ Studio PRO', backgroundColor: '#0b0d10', autoHideMenuBar: true, show: false, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const workArea = screen.getPrimaryDisplay().workAreaSize;
+  const minWidth = Math.min(900, Math.max(520, workArea.width - 24));
+  const minHeight = Math.min(620, Math.max(420, workArea.height - 24));
+  const width = Math.min(1440, Math.max(minWidth, workArea.width - 64));
+  const height = Math.min(920, Math.max(minHeight, workArea.height - 64));
+  const win = new BrowserWindow({ icon: fs.existsSync(path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico')) ? path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico') : path.join(__dirname, 'build', 'LOGO-DJSTUDIO.ico'), width, height, minWidth, minHeight, resizable: true, maximizable: true, fullscreenable: true, title: 'DJ Studio PRO', backgroundColor: '#0b0d10', autoHideMenuBar: true, show: false, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   mainWindow = win;
   win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
   publishSplashProgress(42, 'Carregando a biblioteca musical…');
