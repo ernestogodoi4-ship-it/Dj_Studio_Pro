@@ -1,8 +1,5 @@
-# DJ Studio PRO 2.4.10
+# DJ Studio PRO 2.4.11
 
-. Apps WaveSynk, Mixora e SUNANDO reorganizados em cartões na tela inicial, com prévias clicáveis e descrição ampliada ao passar o mouse.
-. Imagens de fundo sutis adicionadas à tela inicial, ao DJ Studio e ao Melody Studio.
-. Novidades da versão exibidas em faixa contínua e legível; notas permanecem acessíveis pela barra lateral.
-. Ícones sociais clicáveis preparados para receber links.
-. Botão de fechar das notas de atualização corrigido para mouse, toque e tecla Escape.
-. Janela inicial ajustada ao espaço disponível para melhorar o uso em modo janela, tela cheia e diferentes resoluções.
+. Vídeo enviado pelo usuário usado como fundo em loop na tela inicial, sem áudio e com 70% de opacidade.
+. A tela inicial mantém o pôster estático enquanto o vídeo carrega e pausa a reprodução ao sair da tela.
+. Camada escura preserva a leitura dos controles e textos sobre o vídeo.
