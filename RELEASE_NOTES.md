@@ -1,4 +1,3 @@
-Warning: fs was declared with const; use let for reassignable variables.
 # DJ Studio PRO 2.4.10
 
 . Apps WaveSynk, Mixora e SUNANDO reorganizados em cartões na tela inicial, com prévias clicáveis e descrição ampliada ao passar o mouse.

@@ -1,4 +1,3 @@
-Warning: fs was declared with const; use let for reassignable variables.
 {
   "name": "dj-studio-pro",
   "version": "2.4.10",

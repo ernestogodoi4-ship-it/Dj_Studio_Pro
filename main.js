@@ -1,4 +1,3 @@
-Warning: fs was declared with const; use let for reassignable variables.
 const { app, BrowserWindow, shell, ipcMain, screen } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
