@@ -1,6 +1,6 @@
 {
   "name": "dj-studio-pro",
-  "version": "2.4.16",
+  "version": "2.4.17",
   "description": "DJ Studio PRO — aplicativo desktop para Windows com atualizações automáticas",
   "main": "main.js",
   "author": "Synk Audio Factory",
@@ -8,7 +8,8 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis --x64"
+    "dist": "electron-builder --win nsis --x64",
+    "test": "node --test tests/*.test.js"
   },
   "devDependencies": {
     "electron": "45.0.0",
@@ -26,6 +27,7 @@
       "main.js",
       "preload.js",
       "package.json",
+      "RELEASE_NOTES.md",
       "app/**/*"
     ],
     "extraFiles": [
