@@ -52,6 +52,7 @@ button,input,select{font:inherit;color:inherit}
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px}
 /* transport */
 .transport{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.transport #btnBackStudio{margin-left:8px;flex:0 0 34px;width:34px;min-width:34px;padding:0}
 .brand{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.04em;line-height:1;display:flex;gap:6px;align-items:baseline;margin-right:6px}
 .brand b{color:var(--accent);font-weight:700}
 .brand small{font-family:var(--f-body);font-size:11px;color:var(--muted);letter-spacing:.02em;font-weight:500}
@@ -690,6 +691,7 @@ body.dragtrk .deck{outline:1px dashed color-mix(in srgb,var(--accent) 60%,transp
 <div class="app">
   <header class="transport">
     <div class="brand"><img class="logo" src="djstudio-logo.ico" alt="Logo DJ Studio"><span>MELODY STUDIO</span></div>
+    <button class="ibtn" id="btnBackStudio" title="Voltar aos decks do DJ Studio PRO" aria-label="Voltar aos decks"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6.2"/><circle cx="8" cy="3.8" r="1" fill="currentColor"/><path d="M2.4 5.6h2.3M11.3 5.6h2.3M8 9v3"/></svg></button>
     <button class="ibtn projbtn" id="btnProj" title="Projetos, modelos e backup"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 4.5h4l1.5 1.5H14v7H2z"/></svg><span id="projName">Projeto</span></button>
     <div class="tgroup">
       <button class="ibtn play" id="btnPlay" title="Tocar / parar (Espaço)" aria-label="Tocar"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg></button>
@@ -699,10 +701,9 @@ body.dragtrk .deck{outline:1px dashed color-mix(in srgb,var(--accent) 60%,transp
     <label class="field">BPM <input id="bpm" type="number" min="40" max="240" step="1"></label>
     <label class="field">Swing <input id="swing" type="range" min="0" max="0.75" step="0.01"></label>
     <label class="field" title="Compassos do padrão aberto">Comp. <input id="bars" type="number" min="1" max="256" step="1"></label>
-    <button class="ibtn" id="btnSong">Padrão</button>
+    <button class="ibtn" id="btnSong" title="Padrões de música"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3h12v10H2zM5 3v6M8 3v6M11 3v6M2 9h12"/></svg>Padrão</button>
     <button class="ibtn" id="btnMetro" title="Metrônomo" aria-label="Metrônomo"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M5.5 1.8h5l2.6 12H2.9z"/><path d="M8 11L11.5 4"/><path d="M4.2 9.5h7.6"/></svg></button>
-    <button class="ibtn" id="btnPiano" title="Mostrar ou fechar o piano virtual">Piano</button>
-    <button class="ibtn" id="btnBackStudio" title="Voltar aos decks do DJ Studio PRO">← Voltar aos decks</button>
+    <button class="ibtn" id="btnPiano" title="Mostrar ou fechar o piano virtual"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3h12v10H2zM5 3v6M8 3v6M11 3v6M2 9h12"/></svg>Piano</button>
     
     <label class="field">Master <input id="master" type="range" min="0" max="1" step="0.01"></label>
     <canvas id="meter" width="140" height="20" aria-hidden="true"></canvas>
