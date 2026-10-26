@@ -1,3 +1,5 @@
+Warning: fs was declared with const; use let for reassignable variables.
+Warning: s was declared with const; use let for reassignable variables.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -13,7 +15,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const notes = fs.readFileSync(path.join(root, 'RELEASE_NOTES.md'), 'utf8');
 
 test('release metadata is synchronized and included in the packaged app', () => {
-  assert.equal(pkg.version, '2.4.21');
+  assert.equal(pkg.version, '2.4.22');
   assert.match(pkg.build.files.join(' '), /RELEASE_NOTES\.md/);
   assert.match(main, /currentVersion: app\.getVersion\(\), packaged: app\.isPackaged, releaseNotes/);
   assert.match(notes, /^# DJ Studio PRO 2\.4\.20/m);
@@ -33,7 +35,7 @@ test('workspace tabs provide a dedicated deck view and hide performance controls
   assert.match(html, /body\.workspace-view #lib>\.hdl,body\.workspace-view #lib>\.grp\{display:none!important;pointer-events:none!important\}/);
   assert.match(html, /if\(key!=='decks'\)suspendDeckLayoutEditForStudio\(\)/);
   assert.match(html, /body\.workspace-view #lib>#tp-files\.tp\.on/);
-  assert.match(html, /function openDecks\(\)\{hideHome\(\);document\.querySelector\('\.tabs \[data-t="decks"\]'\)/);
+  assert.match(html, /function openDecks\(\)\{const tab=document\.querySelector\('\.tabs \[data-t="decks"\]'\);if\(!tab\)return;hideHome\(\);tab\.click\(\)/);
 });
 
 test('workspaces fill the viewport and preserve the deck-only layout', () => {
@@ -106,7 +108,7 @@ test('analysis and audio workspaces provide session tools without changing the s
   assert.match(html, /Monitor de frequência/);
   assert.match(html, /leitura relativa em tempo real/i);
   assert.match(html, /background-image:none!important/);
-  assert.match(html, /home-bg-video\{position:fixed!important/);
+  assert.match(html, /#homeScreen \.home-bg-video\{pointer-events:none!important;position:fixed!important/);
   assert.match(html, /top-actions #openMelody::before/);
   assert.match(html, /\.tabs:not\(\.nav\) \.tb \.tab-label/);
   assert.match(html, /\.tabs\.nav \.tb::after/);
