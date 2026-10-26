@@ -1,3 +1,11 @@
+# DJ Studio PRO 2.4.20
+
+. Refinado o visual dos botões, abas e controles deslizantes com acabamento inspirado em mesas de DJ.
+. Adicionada opção para iniciar o app em tela cheia e uma aba de atalhos dentro das configurações.
+. Ampliado o visualizador de vídeo da tela inicial para cobrir toda a janela, sem fundo parallax.
+. Recuperada a exibição das ferramentas de Análise e Áudio e incluídos medidores visuais de nível.
+. O cabeçalho usa ícones com nomes acessíveis ao passar o mouse.
+
 # DJ Studio PRO 2.4.19
 
 . Corrigido o layout dos decks e controles inferiores ao iniciar após a atualização.

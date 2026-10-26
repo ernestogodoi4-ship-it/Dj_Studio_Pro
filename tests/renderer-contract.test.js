@@ -13,10 +13,10 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const notes = fs.readFileSync(path.join(root, 'RELEASE_NOTES.md'), 'utf8');
 
 test('release metadata is synchronized and included in the packaged app', () => {
-  assert.equal(pkg.version, '2.4.19');
+  assert.equal(pkg.version, '2.4.20');
   assert.match(pkg.build.files.join(' '), /RELEASE_NOTES\.md/);
   assert.match(main, /currentVersion: app\.getVersion\(\), packaged: app\.isPackaged, releaseNotes/);
-  assert.match(notes, /^# DJ Studio PRO 2\.4\.19/m);
+  assert.match(notes, /^# DJ Studio PRO 2\.4\.20/m);
   assert.doesNotMatch(html, /DJ Studio PRO 2\.3 — gravação corrigida|2\.4\.10/);
 });
 
@@ -82,6 +82,28 @@ test('home news and update modal consume release notes from the version API', ()
   assert.match(html, /function setHomeNews\(raw\)/);
   assert.match(html, /if\(v\?\.releaseNotes\)setHomeNews\(v\.releaseNotes\)/);
   assert.match(html, /if\(v\.releaseNotes\)\{localReleaseNotes=plainReleaseNotes\(v\.releaseNotes\)/);
+});
+
+test('DJ Studio settings include a persisted fullscreen option and a shortcuts section', () => {
+  assert.match(html, /id="openFullscreen"/);
+  assert.match(html, /data-settings-tab="shortcuts"/);
+  assert.match(html, /id="settingsShortcutPanel"/);
+  assert.match(main, /djstudio:fullscreen:get/);
+  assert.match(main, /djstudio:fullscreen:set/);
+  assert.match(main, /fullscreen: readFullscreenPreference\(\)/);
+});
+
+test('analysis and audio workspaces provide session tools without changing the separate Melody Studio', () => {
+  assert.match(html, /data-analysis-export/);
+  assert.match(html, /compatibilidade entre decks/);
+  assert.match(html, /Monitor de frequência/);
+  assert.match(html, /leitura relativa em tempo real/i);
+  assert.match(html, /background-image:none!important/);
+  assert.match(html, /home-bg-video\{position:fixed!important/);
+  assert.match(html, /top-actions #openMelody::before/);
+  assert.match(html, /\.tabs:not\(\.nav\) \.tb \.tab-label/);
+  assert.match(html, /\.tabs\.nav \.tb::after/);
+  assert.match(notes, /Análise e Áudio/);
 });
 
 test('Playlist Analyzer summary is readable and honors reduced motion', () => {

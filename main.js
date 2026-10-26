@@ -56,6 +56,28 @@ let manualCheck = false;
 let startupUpdateCheckDone = !app.isPackaged || process.platform !== 'win32';
 let latestUpdateState = { state: 'idle' };
 const displayReturnStates = new WeakMap();
+const preferenceFile = () => path.join(app.getPath('userData'), 'dj-studio-preferences.json');
+function readFullscreenPreference() {
+  try { return JSON.parse(fs.readFileSync(preferenceFile(), 'utf8')).openFullscreen === true; }
+  catch { return false; }
+}
+ipcMain.handle('djstudio:fullscreen:get', () => readFullscreenPreference());
+ipcMain.handle('djstudio:fullscreen:set', (event, enabled) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const openFullscreen = enabled === true;
+  try {
+    const filename = preferenceFile();
+    fs.mkdirSync(path.dirname(filename), { recursive: true });
+    let preferences = {};
+    try { preferences = JSON.parse(fs.readFileSync(filename, 'utf8')); } catch {}
+    preferences.openFullscreen = openFullscreen;
+    fs.writeFileSync(filename, JSON.stringify(preferences, null, 2));
+    if (win && !win.isDestroyed()) win.setFullScreen(openFullscreen);
+    return { ok: true, openFullscreen };
+  } catch (error) {
+    return { ok: false, openFullscreen: readFullscreenPreference(), message: error.message || 'Não foi possível salvar a preferência.' };
+  }
+});
 ipcMain.handle('djstudio:displays:list', () => screen.getAllDisplays().map((display, index) => ({
   id: display.id,
   label: display.label || (display.id === screen.getPrimaryDisplay().id ? 'Monitor principal' : `Monitor ${index + 1}`),
@@ -262,7 +284,7 @@ function createWindow() {
   const minHeight = Math.max(320, Math.min(620, workArea.height - 24));
   const width = Math.min(1440, Math.max(minWidth, workArea.width - 64));
   const height = Math.min(920, Math.max(minHeight, workArea.height - 64));
-  const win = new BrowserWindow({ icon: fs.existsSync(path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico')) ? path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico') : path.join(__dirname, 'build', 'LOGO-DJSTUDIO.ico'), width, height, minWidth, minHeight, resizable: true, maximizable: true, fullscreenable: true, title: 'DJ Studio PRO', backgroundColor: '#0b0d10', autoHideMenuBar: true, show: false, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const win = new BrowserWindow({ icon: fs.existsSync(path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico')) ? path.join(path.dirname(process.execPath), 'DJ Studio PRO.ico') : path.join(__dirname, 'build', 'LOGO-DJSTUDIO.ico'), width, height, minWidth, minHeight, resizable: true, maximizable: true, fullscreenable: true, fullscreen: readFullscreenPreference(), title: 'DJ Studio PRO', backgroundColor: '#0b0d10', autoHideMenuBar: true, show: false, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   mainWindow = win;
   win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
   publishSplashProgress(42, 'Carregando a biblioteca musical…');

@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld('djStudioDisplays', Object.freeze({
   restore: () => ipcRenderer.invoke('djstudio:displays:restore')
 }));
 
+contextBridge.exposeInMainWorld('djStudioSettings', Object.freeze({
+  getFullscreen: () => ipcRenderer.invoke('djstudio:fullscreen:get'),
+  setFullscreen: enabled => ipcRenderer.invoke('djstudio:fullscreen:set', Boolean(enabled))
+}));
+
 contextBridge.exposeInMainWorld('djStudioUpdates', Object.freeze({
   version: () => ipcRenderer.invoke('djstudio:update:version'),
   check: () => ipcRenderer.invoke('djstudio:update:check'),
