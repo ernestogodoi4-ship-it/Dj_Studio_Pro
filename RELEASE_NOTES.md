@@ -1,3 +1,10 @@
+# DJ Studio PRO 2.4.19
+
+. Corrigido o layout dos decks e controles inferiores ao iniciar após a atualização.
+. Layouts livres antigos são redefinidos uma vez para evitar painéis deslocados ou cortados; músicas e projetos são preservados.
+. Vídeos locais em loop na tela inicial e no painel principal, com transparência ajustada para manter a leitura.
+. Reduzida a opacidade visual da barra lateral e dos cartões da tela inicial.
+
 # DJ Studio PRO 2.4.18
 
 . As abas de Arquivos, Histórico, Gravações, Exportar Mix, Análise, Áudio e Atalhos agora ocupam a janela inteira, sem os decks.
