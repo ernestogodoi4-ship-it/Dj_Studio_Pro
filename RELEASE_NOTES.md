@@ -1,3 +1,16 @@
+# DJ Studio PRO 2.4.22
+
+. Corrigidos os atalhos da tela inicial para abrir Decks, Biblioteca, Melody Studio e Notas de atualização.
+. Os botões principais e os cartões rápidos agora usam o mesmo fluxo de navegação e respondem ao clique.
+. O vídeo de fundo da tela inicial não intercepta mais os cliques.
+. Incluídas prévias promocionais locais para DJ Studio, Melody Studio, WaveSynk, Mixora e SUNANDO.
+. Recuperadas as legendas das abas do cabeçalho ao passar o mouse.
+# DJ Studio PRO 2.4.21
+
+. Corrigido o redimensionamento dos módulos em tela cheia e modo janela, com coordenadas ajustadas à escala da interface.
+. Ampliadas as áreas de arraste dos divisores e mantida a restauração por duplo clique.
+. Alinhado o botão de fones no mixer e movido o atalho da aba para Opções.
+
 # DJ Studio PRO 2.4.20
 
 . Refinado o visual dos botões, abas e controles deslizantes com acabamento inspirado em mesas de DJ.
