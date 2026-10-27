@@ -1,3 +1,7 @@
+# DJ Studio PRO 2.4.23
+
+. Removidos os divisores arrastáveis entre os decks e os módulos inferiores, e entre os módulos inferiores.
+
 # DJ Studio PRO 2.4.22
 
 . Corrigidos os atalhos da tela inicial para abrir Decks, Biblioteca, Melody Studio e Notas de atualização.
