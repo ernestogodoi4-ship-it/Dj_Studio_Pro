@@ -13,7 +13,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const notes = fs.readFileSync(path.join(root, 'RELEASE_NOTES.md'), 'utf8');
 
 test('release metadata is synchronized and included in the packaged app', () => {
-  assert.equal(pkg.version, '2.4.22');
+  assert.equal(pkg.version, '2.4.23');
   assert.match(pkg.build.files.join(' '), /RELEASE_NOTES\.md/);
   assert.match(main, /currentVersion: app\.getVersion\(\), packaged: app\.isPackaged, releaseNotes/);
   assert.match(notes, /^# DJ Studio PRO 2\.4\.20/m);
@@ -43,16 +43,11 @@ test('workspaces fill the viewport and preserve the deck-only layout', () => {
   assert.match(html, /body\.deck-view:not\(\.free\) #lib\{display:none!important\}/);
 });
 
-test('deck screen has independent resize dividers for the four control cards and their row height', () => {
+test('deck screen keeps a clean boundary between decks and lower controls', () => {
   assert.match(html, /--cardsH,112px/);
-  assert.match(html, /className='spl spl-card'/);
-  assert.match(html, /className='spl spl-row'/);
-  assert.match(html, /djstudio-panel-splits-v1/);
-  assert.match(html, /dblclick'.*weights=defaults\.slice\(\)/);
-  assert.match(html, /const scale=\(\)=>\{const r=app\.getBoundingClientRect\(\)/);
-  assert.match(html, /e\.clientX-drag\.x\)\/drag\.scale/);
-  assert.match(html, /e\.clientY-drag\.y\)\/drag\.scale/);
-  assert.match(html, /window\.addEventListener\('pointermove',move\)/);
+  assert.doesNotMatch(html, /className='spl spl-card'/);
+  assert.doesNotMatch(html, /className='spl spl-row'/);
+  assert.doesNotMatch(html, /djstudio-panel-splits-v1/);
   assert.match(html, /tabs\.nav \.tb\[data-t=\"shortcuts\"\]\{display:none!important\}/);
   assert.match(html, /settings-tabs[^\n]*data-settings-tab=\"shortcuts\"/);
   assert.match(html, /mx-pfl \.hp\{position:relative!important;grid-column:2!important/);
