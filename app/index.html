@@ -647,14 +647,6 @@ body.hd.deck-view:not(.free):not(.mel-mode) .spl{display:block}
 .spl::after{content:"";position:absolute;border-radius:2px;background:var(--a);opacity:0;transition:opacity .12s}
 .spl-x::after{left:4px;top:8px;bottom:8px;width:2px}.spl-y::after{top:4px;left:8px;right:8px;height:2px}
 .spl:hover::after,.spl.on::after,.spl:focus-visible::after{opacity:.9}
-body.v16.hd .cards{position:relative;grid-template-columns:minmax(0,var(--cardAm,1.9fr)) minmax(0,var(--cardNext,1fr)) minmax(0,var(--cardRx,1.45fr)) minmax(0,var(--cardRec,1.45fr))!important}
-.spl-card{top:0;bottom:0;width:10px;cursor:col-resize}
-.spl-card{width:20px!important;margin-left:-10px;z-index:100!important}
-.spl-row{height:20px!important;margin-top:-10px;z-index:100!important}
-.spl-card::after{left:9px!important;width:2px!important;top:0!important;bottom:0!important}
-.spl-row::after{top:9px!important;height:2px!important;left:0!important;right:0!important}
-.spl-row{left:0;width:100%;height:10px;cursor:row-resize}
-body.v16.hd.deck-view:not(.free):not(.mel-mode) .spl-card,body.v16.hd.deck-view:not(.free):not(.mel-mode) .spl-row{display:block!important}
 .spl:focus-visible{outline:none}
 body.spl-drag{user-select:none}
 body.v16 .deck .bv{border-bottom:0!important}
@@ -2342,27 +2334,6 @@ requestAnimationFrame(()=>{normalize();place()});
 })();
 })();
 
-/* Redimensionamento robusto dos módulos e da divisão Decks/cartões. */
-(function(){
- const app=document.querySelector('.app'),decks=document.querySelector('.decks'),cards=document.querySelector('.cards');
- if(!app||!decks||!cards)return;
- const defaults=[1.9,1,1.45,1.45],vars=['--cardAm','--cardNext','--cardRx','--cardRec'];
- let weights=defaults.slice(),cardsHeight=112,drag=null;
- try{const saved=JSON.parse(localStorage.getItem('djstudio-panel-splits-v1')||'{}');if(Array.isArray(saved.weights)&&saved.weights.length===4&&saved.weights.every(n=>Number.isFinite(n)&&n>0))weights=saved.weights;if(Number.isFinite(saved.cardsHeight))cardsHeight=Math.max(90,Math.min(300,saved.cardsHeight))}catch(_){}
- const handles=Array.from({length:3},(_,i)=>{const h=document.createElement('div');h.className='spl spl-card';h.dataset.index=i;h.tabIndex=0;h.setAttribute('role','separator');h.setAttribute('aria-orientation','vertical');h.setAttribute('aria-label','Redimensionar módulos inferiores');h.title='Arraste para ajustar · duplo clique restaura';cards.append(h);return h});
- const row=document.createElement('div');row.className='spl spl-row';row.tabIndex=0;row.setAttribute('role','separator');row.setAttribute('aria-orientation','horizontal');row.setAttribute('aria-label','Redimensionar altura entre decks e módulos');row.title='Arraste para ajustar · duplo clique restaura';app.append(row);
- const active=()=>document.body.classList.contains('hd')&&document.body.classList.contains('deck-view')&&!document.body.classList.contains('free')&&!document.body.classList.contains('mel-mode');
- const scale=()=>{const r=app.getBoundingClientRect();return{x:r.width/Math.max(1,app.offsetWidth),y:r.height/Math.max(1,app.offsetHeight)}};
- const save=()=>{try{localStorage.setItem('djstudio-panel-splits-v1',JSON.stringify({weights,cardsHeight}))}catch(_){}};
- const apply=()=>{vars.forEach((v,i)=>cards.style.setProperty(v,weights[i]+'fr'));app.style.setProperty('--cardsH',cardsHeight+'px')};
- const place=()=>{if(!document.body.classList.contains('hd'))return;const z=scale(),c=cards.getBoundingClientRect(),children=[...cards.children].filter(e=>!e.classList.contains('spl-card'));handles.forEach((h,i)=>{if(!children[i]||!children[i+1])return;const a=children[i].getBoundingClientRect(),b=children[i+1].getBoundingClientRect();h.style.left=(((a.right+b.left)/2-c.left)/z.x-10)+'px'});const d=decks.getBoundingClientRect(),k=cards.getBoundingClientRect(),ar=app.getBoundingClientRect();row.style.top=(((d.bottom+k.top)/2-ar.top)/z.y-10)+'px'};
- const begin=(h,e,type)=>{if(!active()||e.button!==0)return;e.preventDefault();const z=scale();h.classList.add('on');document.body.classList.add('spl-drag');if(type==='row')drag={h,type,y:e.clientY,height:cards.offsetHeight,scale:z.y};else{const i=+h.dataset.index,els=[...cards.children].filter(x=>!x.classList.contains('spl-card'));drag={h,type,i,x:e.clientX,scale:z.x,w:[els[i].offsetWidth,els[i+1].offsetWidth],sum:weights[i]+weights[i+1]}}};
- const move=e=>{if(!drag)return;if(drag.type==='row'){cardsHeight=Math.max(90,Math.min(360,drag.height-(e.clientY-drag.y)/drag.scale))}else{const i=drag.i,total=drag.w[0]+drag.w[1],min=Math.min(180,total/2-1),left=Math.max(min,Math.min(total-min,drag.w[0]+(e.clientX-drag.x)/drag.scale));weights[i]=drag.sum*left/total;weights[i+1]=drag.sum-weights[i]}apply();place()};
- const end=()=>{if(!drag)return;drag.h.classList.remove('on');drag=null;document.body.classList.remove('spl-drag');save()};
- handles.forEach(h=>{h.addEventListener('pointerdown',e=>begin(h,e,'card'));h.addEventListener('dblclick',()=>{weights=defaults.slice();apply();save();place()});h.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','Home'].includes(e.key))return;e.preventDefault();const i=+h.dataset.index;if(e.key==='Home')weights=defaults.slice();else{const d=e.key==='ArrowRight'?.12:-.12;weights[i]=Math.max(.5,weights[i]+d);weights[i+1]=Math.max(.5,weights[i+1]-d)}apply();save();place()})});
- row.addEventListener('pointerdown',e=>begin(row,e,'row'));row.addEventListener('dblclick',()=>{cardsHeight=112;apply();save();place()});row.addEventListener('keydown',e=>{if(!['ArrowUp','ArrowDown','Home'].includes(e.key))return;e.preventDefault();cardsHeight=e.key==='Home'?112:Math.max(90,Math.min(360,cardsHeight+(e.key==='ArrowUp'?12:-12)));apply();save();place()});
- window.addEventListener('pointermove',move);window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end);apply();new ResizeObserver(place).observe(app);new ResizeObserver(place).observe(cards);new ResizeObserver(place).observe(decks);new MutationObserver(()=>requestAnimationFrame(place)).observe(document.body,{attributes:true,attributeFilter:['class']});addEventListener('resize',place);requestAnimationFrame(place)
-})();
 /* ---- Aparência: temas e modos reativos ---- */
 (function(){
  const root=document.documentElement,mode=$('#themeMode'),skin=$('#themeSkin'),accent=$('#themeAccent'),secondary=$('#themeSecondary'),panel=$('#themePanel');
