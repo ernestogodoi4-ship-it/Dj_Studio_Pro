@@ -1,3 +1,13 @@
+# DJ Studio PRO 2.4.24
+
+. Decks A e B agora mantêm a mesma largura, com o mixer centralizado.
+. O divisor do mixer ajusta sua largura a partir do centro e salva a configuração automaticamente.
+. A configuração de largura anterior é migrada para o novo layout.
+. A tela inicial mantém os espaços de acesso rápido e dos outros apps vazios, conforme solicitado.
+. O histórico de reprodução é preservado ao reiniciar o aplicativo.
+. A análise de áudio só é atualizada enquanto a aba correspondente está aberta.
+. Ajustes e erros de armazenamento do Melody Studio são apresentados ao usuário.
+
 # DJ Studio PRO 2.4.23
 
 . Removidos os divisores arrastáveis entre os decks e os módulos inferiores, e entre os módulos inferiores.
