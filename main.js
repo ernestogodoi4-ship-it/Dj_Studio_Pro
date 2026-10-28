@@ -58,8 +58,10 @@ let latestUpdateState = { state: 'idle' };
 const displayReturnStates = new WeakMap();
 const preferenceFile = () => path.join(app.getPath('userData'), 'dj-studio-preferences.json');
 function readFullscreenPreference() {
-  try { return JSON.parse(fs.readFileSync(preferenceFile(), 'utf8')).openFullscreen === true; }
-  catch { return false; }
+  try {
+    const preferences = JSON.parse(fs.readFileSync(preferenceFile(), 'utf8'));
+    return typeof preferences.openFullscreen === 'boolean' ? preferences.openFullscreen : true;
+  } catch { return true; }
 }
 ipcMain.handle('djstudio:fullscreen:get', () => readFullscreenPreference());
 ipcMain.handle('djstudio:fullscreen:set', (event, enabled) => {
@@ -85,6 +87,48 @@ ipcMain.handle('djstudio:displays:list', () => screen.getAllDisplays().map((disp
   workArea: display.workArea,
   isPrimary: display.id === screen.getPrimaryDisplay().id
 })));
+const detachedDisplayWindows = new Map();
+function displayWindowBounds(display, fullScreen) {
+  const area = fullScreen ? display.bounds : display.workArea;
+  if (fullScreen) return area;
+  const width = Math.min(area.width, Math.max(Math.min(700, area.width), Math.round(area.width * 0.9)));
+  const height = Math.min(area.height, Math.max(Math.min(480, area.height), Math.round(area.height * 0.9)));
+  return {
+    x: area.x + Math.round((area.width - width) / 2),
+    y: area.y + Math.round((area.height - height) / 2),
+    width,
+    height
+  };
+}
+ipcMain.handle('djstudio:displays:open', (event, { displayId, target, fullScreen = false } = {}) => {
+  const owner = BrowserWindow.fromWebContents(event.sender);
+  const display = screen.getAllDisplays().find(item => String(item.id) === String(displayId));
+  if (!owner || owner.isDestroyed() || !display || !['decks', 'melody'].includes(target)) return { ok: false, message: 'Monitor ou tela inválida.' };
+  let win = detachedDisplayWindows.get(target);
+  if (win && !win.isDestroyed()) {
+    if (win.isFullScreen()) win.setFullScreen(false);
+    win.setBounds(displayWindowBounds(display, fullScreen)); win.show(); win.focus();
+    if (fullScreen) win.setFullScreen(true);
+    return { ok: true, reused: true, target, displayId: display.id };
+  }
+  win = new BrowserWindow({
+    ...displayWindowBounds(display, fullScreen),
+    minWidth: Math.min(640, display.workArea.width), minHeight: Math.min(420, display.workArea.height), show: false, frame: true, fullscreenable: true,
+    backgroundColor: '#090b0f', title: target === 'decks' ? 'DJ Studio PRO · Decks e mixer' : 'DJ Studio PRO · Melody Studio',
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+  detachedDisplayWindows.set(target, win);
+  win.once('closed', () => { if (detachedDisplayWindows.get(target) === win) detachedDisplayWindows.delete(target); });
+  win.once('ready-to-show', () => { if (!win.isDestroyed()) { win.show(); if (fullScreen) win.setFullScreen(true); } });
+  win.webContents.setWindowOpenHandler(({ url }) => { if (url.startsWith('https://') || url.startsWith('http://')) shell.openExternal(url); return { action: 'deny' }; });
+  win.loadFile(path.join(__dirname, 'app', 'index.html'), { query: { djStudioExternal: target } }).catch(error => { console.error('Não foi possível abrir a janela externa:', error); if (!win.isDestroyed()) win.close(); });
+  return { ok: true, reused: false, target, displayId: display.id };
+});
+ipcMain.handle('djstudio:displays:close-external', event => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed() && [...detachedDisplayWindows.values()].includes(win)) { win.close(); return { ok: true }; }
+  return { ok: false };
+});
 ipcMain.handle('djstudio:displays:place', (event, { displayId, fullScreen = false } = {}) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const display = screen.getAllDisplays().find(item => String(item.id) === String(displayId));
@@ -331,5 +375,6 @@ app.whenReady().then(() => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
 
 

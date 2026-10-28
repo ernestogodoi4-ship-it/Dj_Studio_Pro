@@ -1,3 +1,9 @@
+# DJ Studio PRO 2.4.26
+
+. Decks e Melody Studio podem abrir em uma janela independente no monitor escolhido, mantendo o DJ Studio disponível na tela principal.
+. As janelas externas podem ser fechadas sem interromper a janela principal.
+. A opção de iniciar em tela cheia fica ativada por padrão em instalações sem preferência salva.
+
 # DJ Studio PRO 2.4.25
 
 . Restaurado o visual padrão do DJ Studio PRO após os ajustes inspirados no Traktor.
@@ -62,3 +68,4 @@
 . Versão e novidades da tela inicial sincronizadas com as notas incluídas no aplicativo.
 . Resumo do Playlist Analyzer ampliado para melhorar a leitura e respeitar a preferência por movimento reduzido.
 . Corrigido o título da janela para exibir o nome atual do aplicativo.
+

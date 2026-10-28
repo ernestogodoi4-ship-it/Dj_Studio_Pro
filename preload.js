@@ -4,6 +4,8 @@ contextBridge.exposeInMainWorld('djStudioLauncher', Object.freeze({ available: (
 contextBridge.exposeInMainWorld('djStudioDisplays', Object.freeze({
   list: () => ipcRenderer.invoke('djstudio:displays:list'),
   place: (displayId, fullScreen) => ipcRenderer.invoke('djstudio:displays:place', { displayId, fullScreen: Boolean(fullScreen) }),
+  open: (displayId, target, fullScreen) => ipcRenderer.invoke('djstudio:displays:open', { displayId, target, fullScreen: Boolean(fullScreen) }),
+  closeExternal: () => ipcRenderer.invoke('djstudio:displays:close-external'),
   restore: () => ipcRenderer.invoke('djstudio:displays:restore')
 }));
 
@@ -19,3 +21,4 @@ contextBridge.exposeInMainWorld('djStudioUpdates', Object.freeze({
   install: () => ipcRenderer.invoke('djstudio:update:install'),
   onState: callback => { if (typeof callback !== 'function') return () => {}; const listener = (_event, data) => callback(data); ipcRenderer.on('djstudio:update:state', listener); return () => ipcRenderer.removeListener('djstudio:update:state', listener); }
 }));
+
