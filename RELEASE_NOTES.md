@@ -1,3 +1,7 @@
+# DJ Studio PRO 2.4.25
+
+. Restaurado o visual padrão do DJ Studio PRO após os ajustes inspirados no Traktor.
+
 # DJ Studio PRO 2.4.24
 
 . Decks A e B agora mantêm a mesma largura, com o mixer centralizado.

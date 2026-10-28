@@ -13,7 +13,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const notes = fs.readFileSync(path.join(root, 'RELEASE_NOTES.md'), 'utf8');
 
 test('release metadata is synchronized and included in the packaged app', () => {
-  assert.equal(pkg.version, '2.4.24');
+  assert.equal(pkg.version, '2.4.25');
   assert.match(pkg.build.files.join(' '), /RELEASE_NOTES\.md/);
   assert.match(main, /currentVersion: app\.getVersion\(\), packaged: app\.isPackaged, releaseNotes/);
   assert.match(notes, /^# DJ Studio PRO 2\.4\.20/m);
